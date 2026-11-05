@@ -21,9 +21,10 @@ Each cast and reel is still one hardware press; nothing is automated.
 | `Gear.lua` | Equipping the pole from the bags and putting weapons back |
 | `Stats.lua` | Session, zone, lifetime and log stats, and the stats window |
 | `Prices.lua` | Handing the catch to Auctionator's search |
-| `ZoneLevels.lua` | Zone fishing levels (Classic Era data plus Forever player reports) |
+| `ZoneLevels.lua` | Zone fishing levels (Classic Era data) and notes on Forever zones |
 | `FishData.lua` | Every fish in the collection: category, zones (most common first) and recipes |
 | `Collection.lua` | Account-wide record of which characters caught each fish, synced from each character's stats |
+| `MapOverlays.lua` | Every explored-area overlay of each zone map, so the book's maps show fully revealed (generated from game data) |
 | `Book.lua` | The collection book window: fish grid and each fish's page with zones, map and recipes |
 | `Changelog.lua` | Release notes, shown in the What's new window and used for releases |
 | `WhatsNew.lua` | The What's new window and the login chat line |
@@ -41,7 +42,9 @@ Each cast and reel is still one hardware press; nothing is automated.
 
 ### Fish data
 
-`FishData.lua` was built from Wowhead's WoW Forever database: each zone's Fishing tab for where fish are caught, and each fish's "Reagent for" tab for recipes. Only facts are kept: zones in order of how common the fish is there, with Wowhead's counts and percentages left out, and zones below 2% of a fish's catches dropped as noise. Gaps are filled from Classic data or player reports and marked in `more`. Riverglades, new in Forever, has no Wowhead fishing data yet, so its fish come from a player report.
+Which fish exist, and the recipes they go into, are checked against Forever's launch build (1.60.1.70790) using the client's game data on [wago.tools](https://wago.tools): `ItemSparse` and `Item` for the items, `SpellReagents`, `SkillLineAbility` and `SpellName` for recipes. That data doesn't hold recipes' required skill, so `skill` is left out where it isn't known.
+
+Where fish are caught is server-side and not in the client data. `zones` came from Wowhead's Forever zone Fishing tabs, but those turned out to be copied from Classic Era (identical catch counts), so treat them as Classic data. Zones from anywhere else go in `more` with their source (`"classic"` or `"reported"`). Fish with no known zones are fine: the book shows the zones you've caught them in. When Forever loot data turns up, replace `zones` with it.
 
 ## Install for testing
 

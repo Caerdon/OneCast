@@ -6,6 +6,23 @@ local _, ns = ...
 
 ns.CHANGELOG = {
 	{
+		version = "0.2.1",
+		date = "5 November 2026",
+		sections = {
+			{ "Updated for launch", {
+				{ "88 catches in the collection.", "Checked against WoW Forever's launch build: 12 more trophy fish, 6 more bloated fish, the new Whimsyfin, the Fishing Extravaganza's Tastyfish and rare fish, and the Artisan quest fish." },
+				{ "Honest about where fish come from.", "Zones not yet seen in Forever are marked as Classic data or player reports. Fish with no known waters fill in from your own catches." },
+				{ "Maps fully revealed.", "The zone map on each fish's page now shows the whole zone, explored or not, instead of blank parchment." },
+				{ "Riverglades.", "Its \"no minimum skill\" bug is still open. If a fish gets away there, OneCast now trusts that over the bug report." },
+			} },
+			{ "Fixed", {
+				{ "Putting weapons back.", "No longer gets stuck after you level up, or when a saved weapon has left your bags. The pole is never put into a herb or other special bag." },
+				{ "Zone while loading.", "Casts made during a loading screen no longer count under a blank zone." },
+				{ "What's new.", "The version list scrolls once there are more versions than fit." },
+			} },
+		},
+	},
+	{
 		version = "0.2.0",
 		date = "23 October 2026",
 		sections = {

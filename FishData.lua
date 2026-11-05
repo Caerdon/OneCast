@@ -1,15 +1,21 @@
 -- Every fish in the collection book, with where it's caught and what it's used in.
 --
--- Built from Wowhead's WoW Forever database (wowhead.com/forever) on 23 October 2026:
--- each zone's Fishing tab gave the zones, each fish's "Reagent for" tab gave the recipes.
--- Only facts are kept: zones are listed most common first, without Wowhead's counts or
--- percentages, and zones below 2% of a fish's recorded catches are left out as noise.
--- Gaps are filled from player reports, marked in `more` ("reported"); Classic data
--- ("classic") would go there too, but Forever's data covered every Classic gap.
+-- Which fish exist, and their recipes, are checked against WoW Forever's launch build
+-- (1.60.1.70790, 4 November 2026, read from the client's game data on wago.tools): every
+-- item below exists there, and every recipe uses the fish as a reagent.
+--
+-- `zones` came from Wowhead's Forever zone Fishing tabs (23 October 2026), most common
+-- first, zones under 2% of a fish's catches dropped. Those tabs turned out to be copied
+-- from Classic Era (identical catch counts), so treat `zones` as Classic data until
+-- Forever's own loot is observed. Zones from elsewhere are in `more` with their source:
+-- "classic" (Classic Era knowledge) or "reported" (Forever player reports). Fish with
+-- neither, such as most trophies and bloated fish added at launch, have no known zones
+-- yet; the book fills them in from your own catches.
 --
 -- Fields: id (item), name, cat ("fish", "special", "trophy", "bloated"), zones (most
--- common first), more ({ zone, source } outside Forever's data), recipes ({ spell ID,
--- name, profession, skill }). The game supplies icons, quality and flavour text.
+-- common first), more ({ zone, source }), recipes ({ spell ID, name, profession, skill };
+-- skill is left out where unknown: the client data doesn't hold required skill). The
+-- game supplies icons, quality and flavour text.
 
 local _, ns = ...
 
@@ -17,11 +23,15 @@ ns.FISH = {
 	{ id = 6292, name = "10 Pound Mud Snapper", cat = "trophy",
 		zones = { "Mulgore", "Elwynn Forest", "Westfall", "Tirisfal Glades" },
 	},
+	{ id = 13917, name = "103 Pound Mightfish", cat = "trophy",
+	},
 	{ id = 13909, name = "12 Pound Lobster", cat = "trophy",
 		zones = { "Eastern Plaguelands" },
 	},
 	{ id = 6294, name = "12 Pound Mud Snapper", cat = "trophy",
 		zones = { "Elwynn Forest", "Duskwood", "Westfall", "Teldrassil" },
+	},
+	{ id = 13910, name = "15 Pound Lobster", cat = "trophy",
 	},
 	{ id = 6295, name = "15 Pound Mud Snapper", cat = "trophy",
 		zones = { "Durotar", "Elwynn Forest" },
@@ -37,6 +47,10 @@ ns.FISH = {
 	},
 	{ id = 6310, name = "19 Pound Catfish", cat = "trophy",
 		zones = { "Thousand Needles", "Wetlands", "Stormwind City", "Swamp of Sorrows", "The Barrens", "Stonetalon Mountains", "Ashenvale", "Arathi Highlands", "Dustwallow Marsh", "Tirisfal Glades", "Duskwood", "Alterac Mountains" },
+	},
+	{ id = 13911, name = "19 Pound Lobster", cat = "trophy",
+	},
+	{ id = 13912, name = "21 Pound Lobster", cat = "trophy",
 	},
 	{ id = 6311, name = "22 Pound Catfish", cat = "trophy",
 		zones = { "Swamp of Sorrows", "Stonetalon Mountains", "Thousand Needles", "Arathi Highlands", "Westfall", "Ashenvale", "Tirisfal Glades", "Dustwallow Marsh" },
@@ -59,6 +73,8 @@ ns.FISH = {
 	{ id = 6364, name = "32 Pound Catfish", cat = "trophy",
 		zones = { "Dustwallow Marsh", "Desolace", "Redridge Mountains", "Arathi Highlands" },
 	},
+	{ id = 13906, name = "32 Pound Salmon", cat = "trophy",
+	},
 	{ id = 13885, name = "34 Pound Redgill", cat = "trophy",
 		zones = { "Moonglade", "Eastern Plaguelands", "Western Plaguelands" },
 	},
@@ -74,20 +90,36 @@ ns.FISH = {
 	{ id = 13883, name = "45 Pound Redgill", cat = "trophy",
 		zones = { "Un'Goro Crater" },
 	},
+	{ id = 13877, name = "47 Pound Yellowtail", cat = "trophy",
+	},
 	{ id = 13884, name = "49 Pound Redgill", cat = "trophy",
 		zones = { "Un'Goro Crater" },
 	},
 	{ id = 13887, name = "52 Pound Redgill", cat = "trophy",
 		zones = { "Western Plaguelands" },
 	},
+	{ id = 13878, name = "53 Pound Yellowtail", cat = "trophy",
+	},
+	{ id = 13879, name = "59 Pound Yellowtail", cat = "trophy",
+	},
+	{ id = 13880, name = "68 Pound Yellowtail", cat = "trophy",
+	},
 	{ id = 13907, name = "7 Pound Lobster", cat = "trophy",
 		zones = { "Eastern Plaguelands" },
+	},
+	{ id = 13914, name = "70 Pound Mightfish", cat = "trophy",
+	},
+	{ id = 13915, name = "85 Pound Mightfish", cat = "trophy",
 	},
 	{ id = 13908, name = "9 Pound Lobster", cat = "trophy",
 		zones = { "Eastern Plaguelands" },
 	},
+	{ id = 13916, name = "92 Pound Mightfish", cat = "trophy",
+	},
 	{ id = 7973, name = "Big-mouth Clam", cat = "special",
 		zones = { "Azshara", "Eastern Plaguelands", "Tanaris", "Feralas" },
+	},
+	{ id = 6646, name = "Bloated Albacore", cat = "bloated",
 	},
 	{ id = 6643, name = "Bloated Brilliant Smallfish", cat = "bloated",
 		zones = { "Elwynn Forest", "Mulgore" },
@@ -95,17 +127,30 @@ ns.FISH = {
 	{ id = 6647, name = "Bloated Bristle Whisker Catfish", cat = "bloated",
 		zones = { "Hillsbrad Foothills", "Stonetalon Mountains" },
 	},
+	{ id = 21163, name = "Bloated Firefin Snapper", cat = "bloated",
+	},
+	{ id = 21243, name = "Bloated Glossy Mightfish", cat = "bloated",
+	},
+	{ id = 6644, name = "Bloated Mackerel", cat = "bloated",
+	},
 	{ id = 8366, name = "Bloated Mithril Head Trout", cat = "bloated",
 		zones = { "Arathi Highlands", "Desolace", "Alterac Mountains" },
 	},
 	{ id = 6645, name = "Bloated Mud Snapper", cat = "bloated",
 		zones = { "Darkshore", "Stormwind City", "Thunder Bluff" },
 	},
+	{ id = 21162, name = "Bloated Oily Blackmouth", cat = "bloated",
+	},
 	{ id = 13881, name = "Bloated Redgill", cat = "bloated",
 		zones = { "Un'Goro Crater", "Moonglade" },
 	},
+	{ id = 21164, name = "Bloated Rockscale Cod", cat = "bloated",
+	},
 	{ id = 13891, name = "Bloated Whitescale Salmon", cat = "bloated",
 		zones = { "Winterspring" },
+	},
+	{ id = 19803, name = "Brownell's Blue Striped Racer", cat = "special",
+		more = { { "Stranglethorn Vale", "classic" } },
 	},
 	{ id = 13888, name = "Darkclaw Lobster", cat = "fish",
 		zones = { "Eastern Plaguelands" },
@@ -115,9 +160,18 @@ ns.FISH = {
 		zones = { "Azshara", "Moonglade", "Orgrimmar", "Undercity", "Dustwallow Marsh", "Western Plaguelands", "Thousand Needles", "Tanaris" },
 		recipes = { { 8238, "Savory Deviate Delight", "Cooking", 85 }, { 8240, "Elixir of Giant Growth", "Alchemy", 90 } },
 	},
+	{ id = 19806, name = "Dezian Queenfish", cat = "special",
+		more = { { "Stranglethorn Vale", "classic" } },
+	},
+	{ id = 16967, name = "Feralas Ahi", cat = "special",
+		more = { { "Feralas", "classic" } },
+	},
 	{ id = 6359, name = "Firefin Snapper", cat = "fish",
 		zones = { "Stranglethorn Vale", "Tanaris", "Feralas", "Azshara", "Wetlands", "Stonetalon Mountains", "Dustwallow Marsh", "Hillsbrad Foothills" },
 		recipes = { { 7837, "Fire Oil", "Alchemy", 130 } },
+	},
+	{ id = 19805, name = "Keefer's Angelfish", cat = "special",
+		more = { { "Stranglethorn Vale", "classic" } },
 	},
 	{ id = 13893, name = "Large Raw Mightfish", cat = "fish",
 		zones = { "Eastern Plaguelands" },
@@ -126,6 +180,9 @@ ns.FISH = {
 	{ id = 13757, name = "Lightning Eel", cat = "fish",
 		zones = { "Silithus", "Eastern Plaguelands", "Deadwind Pass", "Western Plaguelands", "Desolace", "Moonglade", "Un'Goro Crater" },
 		more = { { "Riverglades", "reported" } },
+	},
+	{ id = 16970, name = "Misty Reed Mahi Mahi", cat = "special",
+		more = { { "Swamp of Sorrows", "classic" } },
 	},
 	{ id = 6358, name = "Oily Blackmouth", cat = "fish",
 		zones = { "Stranglethorn Vale", "Feralas", "The Barrens", "Darkshore", "Moonglade", "Westfall", "Tanaris", "Western Plaguelands", "Wetlands", "Eastern Plaguelands", "Azshara", "Hillsbrad Foothills", "Dustwallow Marsh", "Felwood", "The Hinterlands", "Silverpine Forest" },
@@ -210,8 +267,17 @@ ns.FISH = {
 		zones = { "Tanaris", "The Hinterlands" },
 		recipes = { { 18240, "Grilled Squid", "Cooking", 240 } },
 	},
+	{ id = 16968, name = "Sar'theris Striker", cat = "special",
+		more = { { "Desolace", "classic" } },
+	},
+	{ id = 16969, name = "Savage Coast Blue Sailfin", cat = "special",
+		more = { { "Stranglethorn Vale", "classic" } },
+	},
 	{ id = 6299, name = "Sickly Looking Fish", cat = "special",
 		zones = { "Undercity", "Tirisfal Glades", "Silverpine Forest", "Ashenvale", "Darkshore" },
+	},
+	{ id = 19807, name = "Speckled Tastyfish", cat = "special",
+		more = { { "Stranglethorn Vale", "classic" } },
 	},
 	{ id = 1467, name = "Spotted Sunfish", cat = "special",
 		zones = { "Redridge Mountains" },
@@ -220,6 +286,10 @@ ns.FISH = {
 		zones = { "Azshara", "Tanaris", "Feralas", "Eastern Plaguelands" },
 		more = { { "Riverglades", "reported" } },
 		recipes = { { 17551, "Stonescale Oil", "Alchemy", 250 } },
+	},
+	{ id = 251524, name = "Whimsyfin", cat = "fish",
+		more = { { "Redridge Mountains", "reported" } },
+		recipes = { { 1252566, "Savory Whimsyfin Delight", "Cooking" } },
 	},
 	{ id = 7974, name = "Zesty Clam Meat", cat = "special",
 		zones = { "Azshara", "The Hinterlands", "Feralas" },

@@ -164,8 +164,24 @@ end
 
 -- List ----------------------------------------------------------------------------------
 
+-- The list shows as many versions as fit, scrolled so the selected one is always in view
+-- (Newer / Older and the mouse wheel move through the rest).
+local firstShown = 1
+
 local function UpdateList()
+	-- The list runs from 62 below the top to 64 above the bottom; rows start 46 down.
+	local fit = math.max(1, math.floor((HEIGHT - 62 - 64 - 46 - 8) / ROW_HEIGHT))
+	if selected < firstShown then
+		firstShown = selected
+	elseif selected >= firstShown + fit then
+		firstShown = selected - fit + 1
+	end
 	for i, row in ipairs(frame.rows) do
+		local slot = i - firstShown
+		row:SetShown(slot >= 0 and slot < fit)
+		row:ClearAllPoints()
+		row:SetPoint("TOPLEFT", 8, -46 - slot * ROW_HEIGHT)
+		row:SetPoint("TOPRIGHT", -8, -46 - slot * ROW_HEIGHT)
 		local isSelected = i == selected
 		row.selectedBg:SetShown(isSelected)
 		local c = isSelected and HIGHLIGHT_FONT_COLOR or NORMAL_FONT_COLOR
@@ -245,6 +261,10 @@ local function CreateWindow()
 	local listCount = list:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	listCount:SetPoint("TOPRIGHT", -16, -20)
 	listCount:SetText(#ns.CHANGELOG == 1 and "1 version" or (#ns.CHANGELOG .. " versions"))
+	list:EnableMouseWheel(true)
+	list:SetScript("OnMouseWheel", function(_, delta)
+		Select(selected - delta)
+	end)
 
 	f.rows = {}
 	for i, release in ipairs(ns.CHANGELOG) do

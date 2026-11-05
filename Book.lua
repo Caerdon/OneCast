@@ -152,11 +152,23 @@ local function FlavorText(itemID)
 end
 
 local function Summary(fish)
-	local zones = #(fish.zones or {}) + #(fish.more or {})
+	local zones, seen = 0, {}
+	for _, zone in ipairs(fish.zones or {}) do
+		if not seen[zone] then
+			seen[zone], zones = true, zones + 1
+		end
+	end
+	for _, extra in ipairs(fish.more or {}) do
+		if not seen[extra[1]] then
+			seen[extra[1]], zones = true, zones + 1
+		end
+	end
 	local first = (fish.zones and fish.zones[1]) or (fish.more and fish.more[1] and fish.more[1][1])
 	local text = CAT_LEAD[fish.cat] or "A catch"
-	if zones > 0 then
-		text = text .. string.format(" found in %d zone%s, most often in %s", zones, zones == 1 and "" or "s", first)
+	if zones == 1 then
+		text = text .. " found in " .. first
+	elseif zones > 1 then
+		text = text .. string.format(" found in %d zones, most often in %s", zones, first)
 	end
 	text = text .. "."
 	local skill = EasiestSkill(fish)
@@ -199,10 +211,54 @@ local function ZoneMapID(zone)
 	return zoneMaps[zone]
 end
 
+-- Explored-area overlays on top of the base art, all of them (MapOverlays.lua), so the map
+-- shows fully revealed whatever this character has explored. Laid out as the world map
+-- does: 256-pixel tiles, the last row and column cropped from a power-of-two file.
+local OVERLAY_TILE = 256
+
+local function FileSize(pixels)
+	local size = 16
+	while size < pixels do
+		size = size * 2
+	end
+	return size
+end
+
+local function DrawOverlays(box, mapID, scale, offX, offY)
+	local n = 0
+	for _, o in ipairs(ns.MAP_OVERLAYS and ns.MAP_OVERLAYS[mapID] or {}) do
+		local width, height, ox, oy = o[1], o[2], o[3], o[4]
+		local cols, rows = math.ceil(width / OVERLAY_TILE), math.ceil(height / OVERLAY_TILE)
+		for row = 1, rows do
+			local h = row < rows and OVERLAY_TILE or height - OVERLAY_TILE * (rows - 1)
+			local fileH = row < rows and OVERLAY_TILE or FileSize(h)
+			for col = 1, cols do
+				local w = col < cols and OVERLAY_TILE or width - OVERLAY_TILE * (cols - 1)
+				local fileW = col < cols and OVERLAY_TILE or FileSize(w)
+				n = n + 1
+				local tex = box.overlays[n]
+				if not tex then
+					tex = box:CreateTexture(nil, "ARTWORK", nil, 1)
+					box.overlays[n] = tex
+				end
+				tex:SetTexture(o[4 + (row - 1) * cols + col], nil, nil, "TRILINEAR")
+				tex:SetTexCoord(0, w / fileW, 0, h / fileH)
+				tex:SetSize(w * scale, h * scale)
+				tex:ClearAllPoints()
+				tex:SetPoint("TOPLEFT", box, "TOPLEFT", offX + (ox + OVERLAY_TILE * (col - 1)) * scale,
+					-(offY + (oy + OVERLAY_TILE * (row - 1)) * scale))
+				tex:Show()
+			end
+		end
+	end
+end
+
 -- Draw a zone's map art, scaled to fit the box. Returns the map ID, or nil if none.
 local function DrawMap(box, zone)
-	for _, tile in ipairs(box.tiles) do
-		tile:Hide()
+	for _, list in ipairs({ box.tiles, box.overlays }) do
+		for _, tex in ipairs(list) do
+			tex:Hide()
+		end
 	end
 	local mapID = zone and ZoneMapID(zone)
 	local layers = mapID and C_Map.GetMapArtLayers(mapID)
@@ -220,7 +276,7 @@ local function DrawMap(box, zone)
 	for i, file in ipairs(files) do
 		local tile = box.tiles[i]
 		if not tile then
-			tile = box:CreateTexture(nil, "ARTWORK")
+			tile = box:CreateTexture(nil, "ARTWORK", nil, 0)
 			box.tiles[i] = tile
 		end
 		local col, row = (i - 1) % cols, math.floor((i - 1) / cols)
@@ -231,6 +287,7 @@ local function DrawMap(box, zone)
 			-(offY + row * layer.tileHeight * scale))
 		tile:Show()
 	end
+	DrawOverlays(box, mapID, scale, offX, offY)
 	return mapID
 end
 
@@ -529,7 +586,7 @@ local function RenderLeft(fish, info)
 				info.first.char or "?", info.first.zone and (" in " .. info.first.zone) or ""), INK)
 		end
 	else
-		local tip = fish.zones and fish.zones[1]
+		local tip = (fish.zones and fish.zones[1]) or (fish.more and fish.more[1] and fish.more[1][1])
 		Paragraph("Not caught yet." .. (tip and (" Try " .. tip .. ".") or ""), INK)
 	end
 end
@@ -610,7 +667,8 @@ local function RenderRight(fish, info)
 		dot:SetSize(12, 12)
 		dot:SetPoint("TOPLEFT", page, "TOPLEFT", x, -y - 1)
 		local line = PoolString(pool, QuestFont, 14, INK)
-		line:SetText(string.format("%s  %s%s %d|r", recipe[2], SOFT, recipe[3], recipe[4]))
+		local skill = recipe[4] and (" " .. recipe[4]) or ""
+		line:SetText(string.format("%s  %s%s%s|r", recipe[2], SOFT, recipe[3], skill))
 		line:SetPoint("TOPLEFT", page, "TOPLEFT", x + 18, -y)
 		y = y + 17
 	end
@@ -796,7 +854,7 @@ local function CreateWindow()
 	f.map:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
 	f.map:SetBackdropColor(0.10, 0.08, 0.05, 0.25)
 	f.map:SetBackdropBorderColor(INK_SOFT[1], INK_SOFT[2], INK_SOFT[3], 0.8)
-	f.map.tiles = {}
+	f.map.tiles, f.map.overlays = {}, {}
 	f.map.empty = f.map:CreateFontString(nil, "OVERLAY")
 	SizedFont(f.map.empty, QuestFont, 13)
 	f.map.empty:SetTextColor(INK_SOFT[1], INK_SOFT[2], INK_SOFT[3])

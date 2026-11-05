@@ -19,7 +19,7 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - Your keys go straight back to normal when the line comes in or combat starts.
 
 ### 📖 The fishing collection (new in 0.2.0)
-- A book of **every fish in WoW Forever**: 61 catches across fish, special catches, trophy fish and bloated fish.
+- A book of **every fish in WoW Forever**: 88 catches across fish, special catches, trophy fish and bloated fish, checked against the launch build.
 - See which you've caught, on which characters, and how many. The rest wait greyed out, with your progress at the top.
 - Click any fish for **its own page**: the game's description, your catches on every character, when and where you first caught it, every zone it's caught in with a **map**, and the **recipes** it's used in, including WoW Forever's new ones.
 - Shared across all your characters, including everything caught before you installed it.
@@ -76,8 +76,8 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 
 ## Good to know
 - **Made for WoW Forever.** Classic Era and Retail aren't supported.
-- The collection's fish, zones and recipes come from WoW Forever's own data. Riverglades has no published fishing data yet, so its fish come from player reports.
-- Zone fishing levels come from Classic data plus player reports. Forever may differ, so the Zone tab counts real getaways to keep you honest.
+- The collection's fish and recipes are checked against WoW Forever's own game data. Where each fish is caught isn't published for Forever yet, so zones come from Classic data and player reports, marked as such. Fish with no known waters fill in from your own catches.
+- Zone fishing levels come from Classic data. Forever may differ, and its new zones have no data yet, so the Zone tab counts real getaways to keep you honest.
 - Auction values need Auctionator or TradeSkillMaster installed.
 
 ## Feedback

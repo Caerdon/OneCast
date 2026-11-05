@@ -1,6 +1,8 @@
 -- Fishing skill needed in each zone so that no fish get away, from Classic Era data
--- (zone fishing level + 95). Lure and pole bonuses count towards it. Forever may have
--- retuned some zones, so the stats window also counts real getaways per zone.
+-- (zone fishing level + 95). Lure and pole bonuses count towards it. Zone skill is set
+-- by the server, not the game data, and no source has published Forever's own numbers as
+-- of launch (4 November 2026), so these stay Classic's until someone measures them; the
+-- stats window also counts real getaways per zone, and those win over this table.
 -- Keyed by English zone name (GetRealZoneText); other client languages show "unknown".
 
 local _, ns = ...
@@ -35,11 +37,14 @@ for skill, zones in pairs(LEVELS) do
 	end
 end
 
--- Zones new in Forever. Wowhead's Forever database has no zone fishing levels, so these
--- come from player reports and say so in the stats window.
+-- Zones new in Forever (Riverglades, Shen'dralas, Mount Hyjal, Gilneas) have no Classic
+-- level and no published Forever one, so they're left out above: the stats window judges
+-- them from your own catches and getaways.
+
+-- Notes shown instead of a level, until a getaway in that zone proves them wrong.
 ns.ZONE_FISHING_NOTE = {
-	-- Forever bug report (ClassicWoWCommunity/forever-bugs#189, Sept 2026): skill 1 catches
-	-- every time here, though its fish are 225+ tier. Expect Blizzard to add a minimum.
-	["Riverglades"] = "no minimum skill reported (beta bug)",
+	-- Forever bug report (ClassicWoWCommunity/forever-bugs#189, Sept 2026, still open at
+	-- launch): skill 1 catches every time here, though its fish are 225+ tier. Blizzard
+	-- may add a minimum at any time.
+	["Riverglades"] = "no minimum skill reported (open bug, may be fixed)",
 }
-ns.ZONE_FISHING_SKILL["Riverglades"] = 1

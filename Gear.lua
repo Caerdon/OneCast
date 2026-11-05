@@ -60,7 +60,10 @@ end
 
 local function UnequipToBags(slot)
 	for bag = 0, NUM_BAG_SLOTS or 4 do
-		if C_Container.GetContainerNumFreeSlots(bag) > 0 then
+		-- Only ordinary bags (family 0): a herb or soul bag can't hold the pole, and trying
+		-- would leave it stuck on the cursor.
+		local free, family = C_Container.GetContainerNumFreeSlots(bag)
+		if free > 0 and (family or 0) == 0 then
 			PickupInventoryItem(slot)
 			if bag == 0 then
 				PutItemInBackpack()
@@ -112,6 +115,18 @@ function Gear.PreClick()
 	return true
 end
 
+-- Whether `slot` holds the saved item. Compared by item ID: a saved link goes stale (it
+-- carries the character's level), so comparing links could re-equip the same weapon forever.
+local function Wearing(slot, link)
+	return GetInventoryItemID("player", slot) == C_Item.GetItemInfoInstant(link)
+end
+
+-- Still in the bags? A weapon sold, banked or destroyed since can't be put back.
+local function Owned(link)
+	local count = C_Item.GetItemCount and C_Item.GetItemCount(link) or GetItemCount(link)
+	return (count or 0) > 0
+end
+
 -- One step of putting the saved weapons back; repeated as each swap lands.
 local function RestoreStep()
 	local saved = charDB.savedWeapons
@@ -122,7 +137,13 @@ local function RestoreStep()
 	if InCombatLockdown() then
 		return -- carried on from PLAYER_REGEN_ENABLED
 	end
-	if saved.main and GetInventoryItemLink("player", MAIN) ~= saved.main then
+	for _, key in ipairs({ "main", "off" }) do
+		if saved[key] and not Wearing(key == "main" and MAIN or OFF, saved[key]) and not Owned(saved[key]) then
+			ns.Print(saved[key] .. " is no longer in your bags, so it can't be re-equipped.")
+			saved[key] = nil
+		end
+	end
+	if saved.main and not Wearing(MAIN, saved.main) then
 		Equip(saved.main, MAIN)
 		return
 	end
@@ -133,7 +154,7 @@ local function RestoreStep()
 		end
 		return
 	end
-	if saved.off and GetInventoryItemLink("player", OFF) ~= saved.off then
+	if saved.off and not Wearing(OFF, saved.off) then
 		Equip(saved.off, OFF)
 		return
 	end
@@ -184,7 +205,7 @@ function Gear.OnCombatStart()
 		-- Last moment before lockdown; anything left is finished when combat ends.
 		restoring = true
 		local saved = charDB.savedWeapons
-		if saved.main and GetInventoryItemLink("player", MAIN) ~= saved.main then
+		if saved.main and not Wearing(MAIN, saved.main) then
 			Equip(saved.main, MAIN)
 		end
 	end

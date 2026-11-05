@@ -49,8 +49,13 @@ local function Session()
 	return charDB.session
 end
 
+-- Empty while the zone is still loading; never key stats under "".
 local function CurrentZone()
-	return GetRealZoneText() or UNKNOWN
+	local zone = GetRealZoneText()
+	if not zone or zone == "" then
+		return UNKNOWN or "Unknown"
+	end
+	return zone
 end
 
 local function ZoneTotals(zone)
@@ -437,9 +442,11 @@ local function SkillStatus()
 	local value = modifier > 0 and string.format("%d|cff1eff00+%d|r/%d", rank, modifier, maxRank)
 		or string.format("%d/%d", rank, maxRank)
 	local verdict
-	local note = ns.ZONE_FISHING_NOTE and ns.ZONE_FISHING_NOTE[zone]
 	local here = charDB.zoneStats[zone]
-	if note then
+	local escapes = here and here.escapes or 0
+	local note = ns.ZONE_FISHING_NOTE and ns.ZONE_FISHING_NOTE[zone]
+	if note and escapes == 0 then
+		-- A reported quirk, not a measured level, so it gives way to real getaways.
 		verdict = string.format("|cff1eff00%s: %s.|r", zone, note)
 	elseif not needed then
 		-- No data for this zone: judge from what has actually happened here.
