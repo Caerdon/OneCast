@@ -57,7 +57,8 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - Chat reminders shortly before it starts and when it does. The schedule is Classic's until Forever confirms its own.
 
 ### 🔊 Hear the splash
-- Sound effects turn up while your line is out. Music and ambience are left alone.
+- Sound effects turn up while your line is out.
+- Optionally, music, ambience and dialog go quiet (or off) while your pole is equipped, so the splash stands out. Your own levels come back when your weapons go back on.
 
 ### ⚙️ Fits right in
 - Built from WoW Forever's own UI style.

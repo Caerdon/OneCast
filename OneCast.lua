@@ -23,6 +23,8 @@ local defaults = {
 	doubleClick = true,
 	softInteract = true,
 	soundBoost = true,
+	quietOthers = false,
+	quietLevel = 0, -- percent of the player's own music, ambience and dialog volume
 	minimapButton = true,
 	minimapAngle = 225,
 	alert = true,
@@ -45,7 +47,9 @@ local OPTIONS = {
 	{ cmd = "softinteract", key = "softInteract", label = "Soft-interact while fishing",
 		tooltip = "While the line is out, make the bobber the soft-interact target so the cast key reels it in." },
 	{ cmd = "sound", key = "soundBoost", label = "Louder splash while fishing",
-		tooltip = "While the line is out, turn sound effects up to full so the splash is easy to hear. Music and ambience aren't touched." },
+		tooltip = "While the line is out, turn sound effects up to full so the splash is easy to hear." },
+	{ cmd = "quiet", key = "quietOthers", label = "Quiet other sounds while fishing",
+		tooltip = "While your fishing pole is equipped, turn music, ambience and dialog down (or off) so the splash stands out. They go back to your own levels when your weapons go back on, or if you change them yourself." },
 	{ cmd = "autoequip", key = "autoEquip", label = "Auto-equip fishing pole",
 		tooltip = "If no pole is equipped, the cast key equips the best one in your bags first (press again to cast). Your weapons are saved and put back afterwards." },
 	{ cmd = "combatgear", key = "restoreOnCombat", label = "Re-equip weapons when combat starts",
@@ -73,7 +77,8 @@ local SOFT_INTERACT_CVARS = {
 	SoftTargetInteractArc = "2",   -- 360 degrees
 	SoftTargetInteractRange = "30",
 }
--- Only sound effects are raised; music and ambience are left as the player set them.
+-- Sound effects raised for the cast. Music, ambience and dialog are only touched by the
+-- separate "quiet" option (QUIET_CVARS), which follows the pole rather than the cast.
 local SOUND_CVARS = {
 	Sound_EnableSFX = "1",
 	Sound_SFXVolume = "1",
@@ -88,7 +93,11 @@ local db
 local fishingName
 local fishing = false
 local lastRightClick = 0
-local leased = {} -- cvar -> { original = value, ours = value }
+-- Borrowed CVars by group, each cvar -> { original = value, ours = value }: "cast" for the
+-- length of one cast, "quiet" for as long as the pole is equipped. No CVar is in both.
+local leases = { cast = {}, quiet = {} }
+-- Turned down while the pole is on, to quietLevel percent of the player's own volume.
+local QUIET_CVARS = { "Sound_MusicVolume", "Sound_AmbienceVolume", "Sound_DialogVolume" }
 
 -- Separate owners so dropping the double-click override never drops the reel one.
 local reelOwner = CreateFrame("Frame")
@@ -134,17 +143,21 @@ local function HasFishingPole()
 end
 ns.HasFishingPole = HasFishingPole
 
-local function LeaseCVars(cvars)
+local function LeaseCVars(group, cvars)
+	local leased = leases[group]
 	for name, value in pairs(cvars) do
 		local current = C_CVar.GetCVar(name)
 		if current ~= nil and not leased[name] then
-			leased[name] = { original = current, ours = value }
 			C_CVar.SetCVar(name, value)
+			-- Read back: the game may store the number formatted its own way.
+			leased[name] = { original = current, ours = C_CVar.GetCVar(name) }
 		end
 	end
 end
 
-local function ReleaseCVars()
+-- Give the group's CVars back, each only if it still holds OneCast's value.
+local function ReleaseCVars(group)
+	local leased = leases[group]
 	for name, lease in pairs(leased) do
 		if C_CVar.GetCVar(name) == lease.ours then
 			C_CVar.SetCVar(name, lease.original)
@@ -153,15 +166,36 @@ local function ReleaseCVars()
 	end
 end
 
+-- Quiet music, ambience and dialog while a pole is equipped, if the option is on.
+local function UpdateQuiet(reapply)
+	local want = db and db.quietOthers and HasFishingPole()
+	local active = next(leases.quiet) ~= nil
+	if active and (reapply or not want) then
+		ReleaseCVars("quiet")
+		active = false
+	end
+	if want and not active then
+		local level = math.max(0, math.min(100, db.quietLevel or 0)) / 100
+		local cvars = {}
+		for _, name in ipairs(QUIET_CVARS) do
+			local current = tonumber(C_CVar.GetCVar(name))
+			if current then
+				cvars[name] = tostring(math.floor(current * level * 100 + 0.5) / 100)
+			end
+		end
+		LeaseCVars("quiet", cvars)
+	end
+end
+
 local function StartReelMode()
 	if InCombatLockdown() then
 		return
 	end
 	if db.softInteract then
-		LeaseCVars(SOFT_INTERACT_CVARS)
+		LeaseCVars("cast", SOFT_INTERACT_CVARS)
 	end
 	if db.soundBoost then
-		LeaseCVars(SOUND_CVARS)
+		LeaseCVars("cast", SOUND_CVARS)
 	end
 	for _, key in ipairs({ GetBindingKey(BINDING_COMMAND) }) do
 		SetOverrideBinding(reelOwner, true, key, "INTERACTTARGET")
@@ -172,7 +206,7 @@ local function StopReelMode()
 	if not InCombatLockdown() then
 		ClearOverrideBindings(reelOwner)
 	end
-	ReleaseCVars()
+	ReleaseCVars("cast")
 end
 
 -- The secure cast button. Attributes are set once, out of combat, at login.
@@ -293,6 +327,10 @@ local function SetupSettings()
 			db, "boolean", opt.label, defaults[opt.key])
 		if opt.key == "minimapButton" then
 			setting:SetValueChangedCallback(UpdateMinimapVisibility)
+		elseif opt.key == "quietOthers" then
+			setting:SetValueChangedCallback(function()
+				UpdateQuiet()
+			end)
 		end
 		Settings.CreateCheckbox(category, setting, opt.tooltip)
 		opt.setting = setting
@@ -308,6 +346,22 @@ local function SetupSettings()
 			end
 			Settings.CreateSlider(category, delay, options,
 				"Seconds without casting before your weapons are put back. 0 keeps the pole on until you re-equip by hand.")
+		end
+
+		if opt.key == "quietOthers" and Settings.CreateSlider and Settings.CreateSliderOptions then
+			local level = Settings.RegisterAddOnSetting(category, "OneCast_quietLevel", "quietLevel",
+				db, "number", "Other sounds while fishing", defaults.quietLevel)
+			level:SetValueChangedCallback(function()
+				UpdateQuiet(true)
+			end)
+			local options = Settings.CreateSliderOptions(0, 100, 5)
+			if MinimalSliderWithSteppersMixin then
+				options:SetLabelFormatter(MinimalSliderWithSteppersMixin.Label.Right, function(value)
+					return value == 0 and "Muted" or (value .. "%")
+				end)
+			end
+			Settings.CreateSlider(category, level, options,
+				"How loud music, ambience and dialog stay while your pole is equipped, as a share of your own volume. 0 mutes them.")
 		end
 
 		if opt.key == "openOnCast" then
@@ -435,6 +489,7 @@ events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_LOGOUT")
 events:RegisterEvent("PLAYER_REGEN_DISABLED")
+events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 events:RegisterEvent("SPELLS_CHANGED")
 events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
 events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_STOP", "player")
@@ -460,6 +515,9 @@ events:SetScript("OnEvent", function(_, event, ...)
 			fishingName = name
 			button:SetAttribute("spell", name)
 		end
+		if event == "PLAYER_LOGIN" then
+			UpdateQuiet() -- logged in with the pole on
+		end
 		if event == "PLAYER_LOGIN" and not GetBindingKey(BINDING_COMMAND) then
 			Print("bind a key under Options > Keybindings > AddOns > OneCast, or double right-click with a pole. /onecast for options.")
 		end
@@ -483,10 +541,13 @@ events:SetScript("OnEvent", function(_, event, ...)
 		fishing = false
 		ClearOverrideBindings(reelOwner)
 		ClearOverrideBindings(clickOwner)
-		ReleaseCVars()
+		ReleaseCVars("cast") -- the quiet ones follow the pole, which combat puts away
+	elseif event == "PLAYER_EQUIPMENT_CHANGED" then
+		UpdateQuiet()
 	elseif event == "PLAYER_LOGOUT" then
 		-- CVars are saved on logout; never save ours.
-		ReleaseCVars()
+		ReleaseCVars("cast")
+		ReleaseCVars("quiet")
 	end
 end)
 

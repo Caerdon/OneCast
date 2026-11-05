@@ -6,6 +6,15 @@ local _, ns = ...
 
 ns.CHANGELOG = {
 	{
+		version = "0.3.1",
+		date = "6 November 2026",
+		sections = {
+			{ "New", {
+				{ "Quiet other sounds while fishing.", "An option to turn music, ambience and dialog down or off while your pole is equipped, so the splash stands out. A slider sets how quiet. Everything goes back to your own levels when your weapons go back on. Thanks to paxcow55 for the idea!" },
+			} },
+		},
+	},
+	{
 		version = "0.3.0",
 		date = "5 November 2026",
 		sections = {

@@ -7,9 +7,10 @@ The player-facing description is in [README.md](README.md), the same text as the
 Forever runs the modern (Midnight-era) addon API but `loadstring_untainted` is missing, so SecureHandler snippets don't work. OneCast avoids them:
 
 1. `OneCastButton` is a `SecureActionButtonTemplate` button with `type=spell`, `spell=<Fishing>` (name resolved from spell ID 7620, falling back to 131474).
-2. On `UNIT_SPELLCAST_CHANNEL_START` for Fishing, the key bound to the button is overridden to `INTERACTTARGET`, and `SoftTargetInteract=3`, `SoftTargetInteractArc=2` and `SoftTargetInteractRange=30` are set so the bobber is the soft-interact target. Optionally, SFX volume is raised to full; music and ambience are left alone.
+2. On `UNIT_SPELLCAST_CHANNEL_START` for Fishing, the key bound to the button is overridden to `INTERACTTARGET`, and `SoftTargetInteract=3`, `SoftTargetInteractArc=2` and `SoftTargetInteractRange=30` are set so the bobber is the soft-interact target. Optionally, SFX volume is raised to full for the cast.
 3. On `UNIT_SPELLCAST_CHANNEL_STOP` the override is cleared, and each CVar is restored only if it still holds OneCast's value.
 4. `PLAYER_REGEN_DISABLED` drops every override before combat lockdown; `PLAYER_LOGOUT` restores CVars so they're never saved.
+5. With "Quiet other sounds" on, `Sound_MusicVolume`, `Sound_AmbienceVolume` and `Sound_DialogVolume` are turned down to `quietLevel` percent of their own value while a pole is equipped (checked on `PLAYER_EQUIPMENT_CHANGED`). They're a separate lease group from the per-cast CVars, so the line coming in or combat starting doesn't give them back; the pole coming off does.
 
 Each cast and reel is still one hardware press; nothing is automated.
 
