@@ -24,6 +24,7 @@ Each cast and reel is still one hardware press; nothing is automated.
 | `ZoneLevels.lua` | Zone fishing levels (Classic Era data) and notes on Forever zones |
 | `FishData.lua` | Every fish in the collection: category, zones (most common first) and recipes |
 | `Collection.lua` | Account-wide record of which characters caught each fish, synced from each character's stats |
+| `Extravaganza.lua` | The Stranglethorn Fishing Extravaganza: schedule (Classic's), Tastyfish counter and reminders |
 | `MapOverlays.lua` | Every explored-area overlay of each zone map, so the book's maps show fully revealed (generated from game data) |
 | `Book.lua` | The collection book window: fish grid and each fish's page with zones, map and recipes |
 | `Changelog.lua` | Release notes, shown in the What's new window and used for releases |
@@ -35,6 +36,8 @@ Each cast and reel is still one hardware press; nothing is automated.
 - **Auto-equip pole:** with no pole equipped, the cast key equips the best pole in the bags (the one used last, else highest item level) from the button's `PreClick`, and that press doesn't cast. Weapons are saved per character and put back after the idle delay (60 s by default; 0 = never), when combat starts (anything blocked in combat finishes when it ends), or on demand. Equipping a different weapon by hand forgets the saved ones. Double right-click needs the pole equipped, so a stray double-click never swaps gear.
 - **Sessions:** a cast after 30 minutes idle starts a new session. Fish per hour counts only time actually fishing (gaps over 2 minutes between casts don't count).
 - **Opens on cast:** closing the window with its X or the minimap button keeps it closed until a 2-minute break from fishing; Escape, Alt+Z and cutscenes don't count.
+- **Spots, hours and skill-ups:** each zone's totals keep `spots` by sub-zone (`GetSubZoneText` at the cast). Lifetime items keep `hours`, catches by realm hour (`GetGameTime`), which the collection copies for the book's time of day. `OneCastCharDB.skill` counts catches since the last skill-up; the next-point estimate uses Classic's rule of thumb (1 catch per point to 75, then one more per 25 points).
+- **Session summary** prints after `ACTIVE_GAP` (2 minutes) without a cast, once per stretch of new catches.
 - **Zone levels** are keyed by English zone name (`GetRealZoneText`). The Zone tab counts real getaways (`ERR_FISH_ESCAPED`), and zones without data are judged from them.
 - **Auction prices** come from Auctionator (`GetAuctionPriceByItemID`) or TSM (`dbmarket`). The scan hands every caught item to Auctionator's `MultiSearchExact`.
 - **Wanted items** are account-wide (`OneCastDB.wanted`); stats are per character (`OneCastCharDB`).
@@ -72,10 +75,6 @@ The same run uploads the zip to CurseForge once the repository has (Settings →
 | `CURSEFORGE_PROJECT_ID` | variable | The project ID shown on the CurseForge project page |
 | `CURSEFORGE_GAME_VERSION_ID` | variable | CurseForge's ID for the WoW Forever game version (comma-separate several) |
 
-To find the game version ID, list CurseForge's WoW versions with your token and pick the Forever one:
+To find the game version ID, add the token secret first, then run the workflow by hand (Actions → Build and release → Run workflow, or `gh workflow run release.yml`). Its `curseforge-versions` job lists every CurseForge WoW game version with its ID and type; pick the Forever one.
 
-```bash
-curl -s -H "X-Api-Token: YOUR_TOKEN" https://wow.curseforge.com/api/game/versions
-```
-
-Until the two variables are set, the upload step is skipped and you upload the zip from the GitHub release by hand.
+Until the two variables are set, a release warns that the upload was skipped, and you upload the zip from the GitHub release by hand.

@@ -21,7 +21,8 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 ### 📖 The fishing collection (new in 0.2.0)
 - A book of **every fish in WoW Forever**: 88 catches across fish, special catches, trophy fish and bloated fish, checked against the launch build.
 - See which you've caught, on which characters, and how many. The rest wait greyed out, with your progress at the top.
-- Click any fish for **its own page**: the game's description, your catches on every character, when and where you first caught it, every zone it's caught in with a **map**, and the **recipes** it's used in, including WoW Forever's new ones.
+- Click any fish for **its own page**: the game's description, your catches on every character, when and where you first caught it, whether you caught it **by day or at night**, every zone it's caught in with a **map**, and the **recipes** it's used in, including WoW Forever's new ones.
+- **Filter by zone and search by name.** Pick your zone and show what's missing to see what's left to catch here.
 - Shared across all your characters, including everything caught before you installed it.
 - Catch a fish none of your characters has and chat tells you it's **new for your collection**.
 
@@ -33,12 +34,15 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - A stats window that opens as you cast: catches out of casts, catch rate, fishing time and **fish per hour**.
 - Tabs for the **session**, the **zone** you're in (all time), your **lifetime** totals, and a **log** of recent catches.
 - Every fish you've caught, with icon, quality colour and count.
+- **Best spots:** every lake, coast and river you fish in a zone, compared by fish per hour.
+- A **session summary** in chat when you take a break: catches, fish per hour, value, skill gained and new fish.
 - Click any item for its **WoW Forever Wowhead** page, ready to copy. Shift-click to link it in chat.
 
 ### 🗺️ Is this zone right for you?
 - An animated skill bar shows your Fishing skill, lure bonus included.
 - See at a glance whether you meet the zone's fishing level, so no fish get away.
 - Zones without known levels are judged from your own catches and getaways.
+- **Skill-ups:** skill gained this session, about how many catches until the next point, and how many until the zone's level.
 
 ### 💰 What your catch is worth
 - Vendor value of everything caught, per tab.
@@ -48,11 +52,16 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - A raid-warning flash and sound for anything green or better (you choose the quality).
 - Right-click any fish to mark it as **wanted** and get alerted when it bites.
 
+### 🏆 Fishing Extravaganza
+- A countdown to Stranglethorn's Sunday contest, a Tastyfish counter while it runs, and an alert the moment you hold 40.
+- Chat reminders shortly before it starts and when it does. The schedule is Classic's until Forever confirms its own.
+
 ### 🔊 Hear the splash
 - Sound effects turn up while your line is out. Music and ambience are left alone.
 
 ### ⚙️ Fits right in
 - Built from WoW Forever's own UI style.
+- Offers to turn on auto loot if it's off, so catches go straight to your bags.
 - Minimap button, addon compartment entry and a full options page.
 - Drag and scale the stats window, and close it whenever you like.
 - A **What's new** page shows every update.

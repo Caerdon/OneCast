@@ -6,6 +6,25 @@ local _, ns = ...
 
 ns.CHANGELOG = {
 	{
+		version = "0.3.0",
+		date = "5 November 2026",
+		sections = {
+			{ "New", {
+				{ "Skill-ups.", "The Session tab shows the Fishing skill you've gained and about how many catches until the next point. Below a zone's level, the skill bar says roughly how many catches it'll take to get there." },
+				{ "Session summary.", "Take a 2-minute break and chat sums up the session: catches, fish per hour, vendor value, skill gained and new fish for your collection." },
+				{ "Best spots.", "The Zone tab now tracks every spot you fish in a zone, a lake, a coast or a river. Click Spots to compare them, best fish per hour first, and hover one to see what bites there." },
+				{ "Time of day.", "Every catch notes the realm hour, so each fish's page says whether you caught it by day or at night. Nightfin Snapper and Sunscale Salmon say when they bite in Classic." },
+				{ "Find any fish.", "The collection book has a zone filter and a search box. Pick your zone, then Showing: missing, to see what's left to catch here." },
+				{ "Fishing Extravaganza.", "A countdown to Stranglethorn's Sunday contest (Classic's schedule), a Tastyfish counter while it runs, chat reminders, and an alert the moment you hold 40." },
+				{ "Auto loot.", "If auto loot is off, OneCast offers once to turn it on, so catches go straight to your bags." },
+			} },
+			{ "Changed", {
+				{ "Auction house.", "The Scan fish prices button on the auction house window is gone. Scan from the stats window's button or /onecast scan instead." },
+				{ "Lifetime tab.", "Shows how much of the collection you've caught." },
+			} },
+		},
+	},
+	{
 		version = "0.2.1",
 		date = "5 November 2026",
 		sections = {

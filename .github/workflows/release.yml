@@ -3,13 +3,15 @@ name: Build and release
 # Every push and pull request: syntax-check the Lua and make sure the TOC version has
 # notes in Changelog.lua. Pushing a tag like v0.1.0 also builds OneCast-0.1.0.zip,
 # publishes a GitHub release with it, and uploads it to CurseForge once that's set up
-# (see "Releasing" in README.md).
+# (see "Releasing" in DEVELOPMENT.md). Running it by hand (Actions > Run workflow) lists
+# CurseForge's WoW game versions, to find CURSEFORGE_GAME_VERSION_ID.
 
 on:
   push:
     branches: [main]
     tags: ["v*"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -34,6 +36,27 @@ jobs:
           version=$(sed -n 's/^## Version: *//p' OneCast.toc | tr -d '\r')
           lua5.1 .github/scripts/release-notes.lua "$version" > /dev/null
           echo "OneCast $version has release notes."
+
+  curseforge-versions:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: List CurseForge's WoW game versions
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+        run: |
+          if [ -z "$CF_API_TOKEN" ]; then
+            echo "::error::Add the CF_API_TOKEN secret first"
+            exit 1
+          fi
+          api=https://wow.curseforge.com/api/game
+          curl --fail-with-body -sS -H "X-Api-Token: $CF_API_TOKEN" "$api/version-types" > types.json
+          curl --fail-with-body -sS -H "X-Api-Token: $CF_API_TOKEN" "$api/versions" > versions.json
+          echo "ID      TYPE                          VERSION"
+          jq -r --slurpfile types types.json '
+            ($types[0] | map({ key: (.id | tostring), value: .name }) | from_entries) as $t
+            | sort_by(.gameVersionTypeID, .id) | .[]
+            | "\(.id)\t\($t[.gameVersionTypeID | tostring] // "?")\t\(.name)"' versions.json
 
   release:
     needs: check
@@ -81,6 +104,10 @@ jobs:
           case "$VERSION" in *alpha*|*beta*) prerelease="--prerelease" ;; esac
           gh release create "$GITHUB_REF_NAME" "dist/OneCast-$VERSION.zip" \
             --title "OneCast $VERSION" --notes-file release-notes.md $prerelease
+
+      - name: CurseForge isn't set up
+        if: vars.CURSEFORGE_PROJECT_ID == '' || vars.CURSEFORGE_GAME_VERSION_ID == ''
+        run: echo "::warning::Skipped the CurseForge upload. Set the CURSEFORGE_PROJECT_ID and CURSEFORGE_GAME_VERSION_ID variables, then upload this zip by hand."
 
       - name: Upload to CurseForge
         # Runs once the repository has the CF_API_TOKEN secret and the

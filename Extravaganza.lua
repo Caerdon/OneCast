@@ -1,0 +1,152 @@
+-- OneCast: the Stranglethorn Fishing Extravaganza. A countdown to the next contest, a
+-- Tastyfish counter while it runs, and chat reminders.
+--
+-- The schedule is Classic Era's: every Sunday, 14:00 to 16:00 realm time, when Speckled
+-- Tastyfish and the contest's rare fish bite in Stranglethorn Vale. The first player to
+-- hand 40 Tastyfish to Riggle Bassbait in Booty Bay wins. Forever hasn't confirmed its
+-- own schedule yet, so everything shown says it's Classic's.
+
+local _, ns = ...
+
+local X = {}
+ns.Extravaganza = X
+
+X.ZONE = "Stranglethorn Vale"
+X.TASTYFISH = 19807
+X.GOAL = 40
+X.SCHEDULE = "Sundays 14:00-16:00 realm time"
+
+local WEEKDAY = 1          -- calendar weekday: 1 is Sunday
+local START_HOUR = 14
+local LENGTH = 2 * 3600
+local WEEK = 7 * 86400
+local REMIND_BEFORE = 15 * 60
+
+-- Realm time as seconds since Sunday 00:00 of this week, or nil if the calendar isn't ready.
+local function WeekSeconds()
+	local t = C_DateAndTime and C_DateAndTime.GetCurrentCalendarTime and C_DateAndTime.GetCurrentCalendarTime()
+	if not (t and t.weekday and t.hour) then
+		return nil
+	end
+	return (t.weekday - 1) * 86400 + t.hour * 3600 + (t.minute or 0) * 60 + GetServerTime() % 60
+end
+
+-- running, seconds: while the contest runs, true and the seconds left; otherwise false and
+-- the seconds until it starts. nil if realm time isn't known.
+function X.Status()
+	local now = WeekSeconds()
+	if not now then
+		return nil
+	end
+	local start = (WEEKDAY - 1) * 86400 + START_HOUR * 3600
+	if now >= start and now < start + LENGTH then
+		return true, start + LENGTH - now
+	end
+	return false, (start - now) % WEEK
+end
+
+-- "2d 4h", "3h 12m" or "12m".
+function X.FormatWait(seconds)
+	seconds = math.max(0, math.floor(seconds))
+	local d, h, m = math.floor(seconds / 86400), math.floor(seconds % 86400 / 3600), math.floor(seconds % 3600 / 60)
+	if d > 0 then
+		return string.format("%dd %dh", d, h)
+	elseif h > 0 then
+		return string.format("%dh %02dm", h, m)
+	end
+	return string.format("%dm", math.max(m, 1))
+end
+
+function X.TastyfishInBags()
+	if C_Item.GetItemCount then
+		return C_Item.GetItemCount(X.TASTYFISH) or 0
+	end
+	return GetItemCount and GetItemCount(X.TASTYFISH) or 0
+end
+
+-- One line for the stats window, or nil when the contest isn't worth mentioning: shown
+-- while it runs, in Stranglethorn Vale, or in the last few hours before it starts.
+function X.StatusLine(zone)
+	local running, seconds = X.Status()
+	if running == nil then
+		return nil
+	end
+	if running then
+		return string.format("Tastyfish %d/%d  |cff9d9d9d%s left|r", X.TastyfishInBags(), X.GOAL, X.FormatWait(seconds))
+	end
+	if zone == X.ZONE or seconds <= 3 * 3600 then
+		return "starts in " .. X.FormatWait(seconds)
+	end
+end
+
+-- A sentence for the fish's page in the book.
+function X.Describe()
+	local running, seconds = X.Status()
+	local text = "Bites only during the Stranglethorn Fishing Extravaganza, " .. X.SCHEDULE .. " in Classic."
+	if running then
+		return text .. " It's on now: " .. X.FormatWait(seconds) .. " left."
+	elseif running == false then
+		return text .. " Next contest in " .. X.FormatWait(seconds) .. "."
+	end
+	return text
+end
+
+-- The moment you hold 40 Tastyfish during the contest, say where to go. Checked when the
+-- bags change rather than at the catch, since the fish isn't in the bags until it's looted.
+local announcedGoal = false
+local function CheckGoal()
+	if announcedGoal or not X.Status() or X.TastyfishInBags() < X.GOAL then
+		return
+	end
+	announcedGoal = true
+	ns.Print(string.format("%d Speckled Tastyfish! Hand them to Riggle Bassbait in Booty Bay to win.", X.GOAL))
+	if RaidNotice_AddMessage and RaidWarningFrame then
+		RaidNotice_AddMessage(RaidWarningFrame, X.GOAL .. " Tastyfish: hurry to Booty Bay!", ChatTypeInfo.RAID_WARNING)
+	end
+	PlaySound(SOUNDKIT.RAID_WARNING)
+end
+
+-- Called by Stats.lua after a catch: watch the bags only once a Tastyfish bites.
+local bagWatch = CreateFrame("Frame")
+bagWatch:SetScript("OnEvent", CheckGoal)
+function X.OnCatch(loot)
+	for _, l in ipairs(loot) do
+		if l.id == X.TASTYFISH and not announcedGoal and X.Status() then
+			bagWatch:RegisterEvent("BAG_UPDATE_DELAYED")
+		end
+	end
+end
+
+-- Chat reminders: shortly before the start, at the start, and once at login while it runs.
+local wasRunning, remindedSoon
+local function Tick()
+	local running, seconds = X.Status()
+	if running == nil or not (ns.db and ns.db.extravaganza) then
+		return
+	end
+	if running and not wasRunning then
+		ns.Print(string.format("the Stranglethorn Fishing Extravaganza is on%s! Catch %d Speckled Tastyfish in Stranglethorn Vale and hand them to Riggle Bassbait in Booty Bay.",
+			wasRunning == nil and (" (" .. X.FormatWait(seconds) .. " left)") or "", X.GOAL))
+	elseif not running and seconds <= REMIND_BEFORE and not remindedSoon then
+		remindedSoon = true
+		ns.Print("the Stranglethorn Fishing Extravaganza starts in " .. X.FormatWait(seconds) .. ".")
+	end
+	if not running and seconds > REMIND_BEFORE then
+		remindedSoon = false
+	end
+	if not running then
+		announcedGoal = false
+		bagWatch:UnregisterEvent("BAG_UPDATE_DELAYED")
+	end
+	wasRunning = running
+end
+
+local events = CreateFrame("Frame")
+events:RegisterEvent("PLAYER_LOGIN")
+events:SetScript("OnEvent", function()
+	-- Give the login chat a moment, then check every 30 seconds.
+	C_Timer.After(6, function()
+		Tick()
+		C_Timer.NewTicker(30, Tick)
+	end)
+end)

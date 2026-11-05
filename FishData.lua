@@ -14,8 +14,10 @@
 --
 -- Fields: id (item), name, cat ("fish", "special", "trophy", "bloated"), zones (most
 -- common first), more ({ zone, source }), recipes ({ spell ID, name, profession, skill };
--- skill is left out where unknown: the client data doesn't hold required skill). The
--- game supplies icons, quality and flavour text.
+-- skill is left out where unknown: the client data doesn't hold required skill), when
+-- ("night" or "day": bites only then in Classic), event ("extravaganza": bites only during
+-- the Stranglethorn Fishing Extravaganza in Classic). The game supplies icons, quality and
+-- flavour text.
 
 local _, ns = ...
 
@@ -149,7 +151,7 @@ ns.FISH = {
 	{ id = 13891, name = "Bloated Whitescale Salmon", cat = "bloated",
 		zones = { "Winterspring" },
 	},
-	{ id = 19803, name = "Brownell's Blue Striped Racer", cat = "special",
+	{ id = 19803, name = "Brownell's Blue Striped Racer", cat = "special", event = "extravaganza",
 		more = { { "Stranglethorn Vale", "classic" } },
 	},
 	{ id = 13888, name = "Darkclaw Lobster", cat = "fish",
@@ -160,7 +162,7 @@ ns.FISH = {
 		zones = { "Azshara", "Moonglade", "Orgrimmar", "Undercity", "Dustwallow Marsh", "Western Plaguelands", "Thousand Needles", "Tanaris" },
 		recipes = { { 8238, "Savory Deviate Delight", "Cooking", 85 }, { 8240, "Elixir of Giant Growth", "Alchemy", 90 } },
 	},
-	{ id = 19806, name = "Dezian Queenfish", cat = "special",
+	{ id = 19806, name = "Dezian Queenfish", cat = "special", event = "extravaganza",
 		more = { { "Stranglethorn Vale", "classic" } },
 	},
 	{ id = 16967, name = "Feralas Ahi", cat = "special",
@@ -170,7 +172,7 @@ ns.FISH = {
 		zones = { "Stranglethorn Vale", "Tanaris", "Feralas", "Azshara", "Wetlands", "Stonetalon Mountains", "Dustwallow Marsh", "Hillsbrad Foothills" },
 		recipes = { { 7837, "Fire Oil", "Alchemy", 130 } },
 	},
-	{ id = 19805, name = "Keefer's Angelfish", cat = "special",
+	{ id = 19805, name = "Keefer's Angelfish", cat = "special", event = "extravaganza",
 		more = { { "Stranglethorn Vale", "classic" } },
 	},
 	{ id = 13893, name = "Large Raw Mightfish", cat = "fish",
@@ -217,7 +219,7 @@ ns.FISH = {
 		more = { { "Riverglades", "reported" } },
 		recipes = { { 20916, "Mithril Headed Trout", "Cooking", 175 }, { 1262990, "Fishing Rack", "Fishing", 140 } },
 	},
-	{ id = 13759, name = "Raw Nightfin Snapper", cat = "fish",
+	{ id = 13759, name = "Raw Nightfin Snapper", cat = "fish", when = "night",
 		zones = { "Moonglade", "Western Plaguelands", "Felwood", "The Hinterlands", "Deadwind Pass", "Eastern Plaguelands" },
 		recipes = { { 18243, "Nightfin Soup", "Cooking", 250 } },
 	},
@@ -254,7 +256,7 @@ ns.FISH = {
 		zones = { "Eastern Plaguelands", "Tanaris" },
 		recipes = { { 18242, "Hot Smoked Bass", "Cooking", 240 } },
 	},
-	{ id = 13760, name = "Raw Sunscale Salmon", cat = "fish",
+	{ id = 13760, name = "Raw Sunscale Salmon", cat = "fish", when = "day",
 		zones = { "Eastern Plaguelands", "Moonglade", "Deadwind Pass", "Western Plaguelands", "Winterspring", "Tanaris" },
 		more = { { "Riverglades", "reported" } },
 		recipes = { { 18244, "Poached Sunscale Salmon", "Cooking", 250 } },
@@ -276,7 +278,7 @@ ns.FISH = {
 	{ id = 6299, name = "Sickly Looking Fish", cat = "special",
 		zones = { "Undercity", "Tirisfal Glades", "Silverpine Forest", "Ashenvale", "Darkshore" },
 	},
-	{ id = 19807, name = "Speckled Tastyfish", cat = "special",
+	{ id = 19807, name = "Speckled Tastyfish", cat = "special", event = "extravaganza",
 		more = { { "Stranglethorn Vale", "classic" } },
 	},
 	{ id = 1467, name = "Spotted Sunfish", cat = "special",

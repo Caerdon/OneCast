@@ -5,6 +5,10 @@
 -- A catch is counted on the first LOOT_READY after that cast where IsFishingLoot() is
 -- true, so a reel that loses the fish counts as a cast without a catch. "Your fish got
 -- away" (ERR_FISH_ESCAPED) is counted separately: it means your skill is too low here.
+--
+-- Each zone's totals also keep `spots` by sub-zone (GetSubZoneText at the cast), lifetime
+-- items keep `hours` (catches by realm hour, for the book's time of day), and `charDB.skill`
+-- counts catches since the last Fishing skill-up to estimate the next one.
 
 local ADDON, ns = ...
 
@@ -17,7 +21,7 @@ local LOG_SIZE = 100
 local SCALE_MIN, SCALE_MAX, SCALE_STEP = 50, 200, 5 -- percent
 
 -- Layout, in pixels from the top of the inset panel.
-local STAT_ROWS, STAT_HEIGHT = 6, 17
+local STAT_ROWS, STAT_HEIGHT = 8, 17
 local MAX_ROWS, ITEM_HEIGHT = 8, 22
 local SUMMARY_TOP = -78
 local LIST_TOP = SUMMARY_TOP - 28 - STAT_ROWS * STAT_HEIGHT - 6
@@ -35,6 +39,9 @@ local VIEWS = {
 
 local charDB
 local awaitingLoot = false
+local castZone, castSpot -- where the line went out, for the catch it brings in
+local summaryTimer
+local autoLootOffered = false -- once per login
 local frame -- the stats window, created on first open
 -- Set when the player closes the window on purpose (X button, minimap button, /onecast
 -- stats); it then stays closed on cast until they take a break from fishing. Escape,
@@ -67,12 +74,44 @@ local function ZoneTotals(zone)
 	return totals
 end
 
+-- The named spot within the zone (a lake, a coast), or the zone itself where there's none.
+local function CurrentSpot(zone)
+	local sub = GetSubZoneText and GetSubZoneText()
+	if not sub or sub == "" or sub == zone then
+		return zone
+	end
+	return sub
+end
+
+local function SpotTotals(zoneTotals, spot)
+	zoneTotals.spots = zoneTotals.spots or {}
+	local t = zoneTotals.spots[spot]
+	if not t then
+		t = { casts = 0, catches = 0, activeTime = 0, items = {} }
+		zoneTotals.spots[spot] = t
+	end
+	return t
+end
+
 local function RefreshIfShown()
 	if frame and frame:IsShown() then
 		Stats.Refresh()
 	end
 end
 Stats.RefreshIfShown = RefreshIfShown
+
+-- For events that come in bursts (item data loading, skill lines): one redraw shortly after.
+local refreshPending = false
+local function ScheduleRefresh()
+	if refreshPending or not (frame and frame:IsShown()) then
+		return
+	end
+	refreshPending = true
+	C_Timer.After(0.2, function()
+		refreshPending = false
+		RefreshIfShown()
+	end)
+end
 
 local function ResetSession()
 	charDB.session = NewTotals()
@@ -135,6 +174,42 @@ local function FishingSkill()
 			end
 		end
 	end
+end
+
+-- Rough catches per Fishing skill point, the long-standing Classic estimate: one each up
+-- to 75, then one more for every 25 points (about 10 per point near 300).
+local function CatchesPerPoint(rank)
+	if rank <= 75 then
+		return 1
+	end
+	return math.ceil((rank - 75) / 25) + 1
+end
+
+-- Notice skill-ups: the catch count toward the next point starts again at each one.
+local function CheckSkill()
+	local rank = FishingSkill()
+	if not rank then
+		return
+	end
+	local track = charDB.skill
+	if track.rank ~= rank then
+		track.rank, track.catches = rank, 0
+	end
+	track.catches = track.catches or 0
+end
+
+-- About how many catches until the skill reaches `rank + points`.
+local function CatchesToGo(rank, points)
+	local total = 0
+	for i = 0, points - 1 do
+		total = total + CatchesPerPoint(rank + i)
+	end
+	return math.max(1, total - (charDB.skill.rank == rank and charDB.skill.catches or 0))
+end
+
+local function SkillGained(s)
+	local rank = FishingSkill()
+	return rank and s.skillStart and rank - s.skillStart or 0
 end
 
 -- Coin values. Vendor price comes from the item data; auction price from Auctionator
@@ -229,6 +304,67 @@ local function AlertIfRare(loot)
 	end
 end
 
+-- Sum up the session in chat once the player has stopped for a while.
+local function SessionSummaryText(s)
+	local parts = { string.format("%d catch%s", s.catches, s.catches == 1 and "" or "es") }
+	local rate = PerHour(s)
+	if rate then
+		parts[#parts + 1] = string.format("%.0f/hr", rate)
+	end
+	local vendor = TotalValue(s.items, VendorPrice)
+	if vendor > 0 then
+		parts[#parts + 1] = Coins(vendor) .. " vendor"
+	end
+	local gained = SkillGained(s)
+	if gained > 0 then
+		parts[#parts + 1] = string.format("+%d %s", gained, ns.GetFishingName and ns.GetFishingName() or "Fishing")
+	end
+	if (s.newFish or 0) > 0 then
+		parts[#parts + 1] = string.format("%d new for your collection", s.newFish)
+	end
+	return table.concat(parts, ", ")
+end
+
+local function PrintSessionSummary()
+	summaryTimer = nil
+	local s = Session()
+	if not (ns.db and ns.db.sessionSummary) or s.catches <= (s.summarized or 0) then
+		return
+	end
+	local lead = (s.summarized or 0) > 0 and "session so far: " or "session: "
+	s.summarized = s.catches
+	ns.Print(lead .. SessionSummaryText(s) .. ".")
+end
+
+StaticPopupDialogs["ONECAST_AUTOLOOT"] = {
+	text = "Auto loot is off, so every catch opens a loot window you have to click.\n\nTurn on auto loot so catches go straight to your bags? You can change it back in Options > Controls.",
+	button1 = "Turn on",
+	button2 = "Not now",
+	button3 = "Don't ask again",
+	OnAccept = function()
+		C_CVar.SetCVar("autoLootDefault", "1")
+		ns.Print("auto loot is on.")
+	end,
+	OnAlt = function()
+		ns.db.autoLootHint = false
+		ns.Print("won't offer auto loot again. Turn the offer back on in OneCast's options.")
+	end,
+	timeout = 0,
+	whileDead = true,
+	hideOnEscape = true,
+}
+
+local function OfferAutoLoot(autoLooted)
+	if autoLootOffered or autoLooted or not (ns.db and ns.db.autoLootHint) then
+		return
+	end
+	if C_CVar.GetCVar("autoLootDefault") == "1" then
+		return
+	end
+	autoLootOffered = true
+	StaticPopup_Show("ONECAST_AUTOLOOT")
+end
+
 function Stats.OnCast()
 	local now = GetServerTime()
 	local s = Session()
@@ -239,19 +375,32 @@ function Stats.OnCast()
 		ResetSession()
 		s = Session()
 	end
-	local zoneTotals = ZoneTotals(CurrentZone())
+	castZone = CurrentZone()
+	castSpot = CurrentSpot(castZone)
+	local zoneTotals = ZoneTotals(castZone)
+	local spotTotals = SpotTotals(zoneTotals, castSpot)
 	if s.lastCast and now - s.lastCast <= ACTIVE_GAP then
 		local gap = now - s.lastCast
 		s.activeTime = s.activeTime + gap
 		charDB.lifetime.activeTime = charDB.lifetime.activeTime + gap
 		zoneTotals.activeTime = zoneTotals.activeTime + gap
+		spotTotals.activeTime = spotTotals.activeTime + gap
 	end
 	s.start = s.start or now
 	s.lastCast = now
 	s.casts = s.casts + 1
 	charDB.lifetime.casts = charDB.lifetime.casts + 1
 	zoneTotals.casts = zoneTotals.casts + 1
+	spotTotals.casts = spotTotals.casts + 1
+	if s.skillStart == nil then
+		s.skillStart = FishingSkill()
+	end
 	awaitingLoot = true
+
+	if summaryTimer then
+		summaryTimer:Cancel()
+	end
+	summaryTimer = C_Timer.NewTimer(ACTIVE_GAP + 1, PrintSessionSummary)
 
 	-- Open on cast, unless the player closed it during this stretch of fishing.
 	if ns.db and ns.db.openOnCast and not dismissed and not (frame and frame:IsShown()) then
@@ -261,7 +410,7 @@ function Stats.OnCast()
 	end
 end
 
-local function OnLootReady()
+local function OnLootReady(autoLooted)
 	if not awaitingLoot or not IsFishingLoot() then
 		return
 	end
@@ -281,14 +430,35 @@ local function OnLootReady()
 	end
 
 	local zone = CurrentZone()
-	AddCatch(Session(), zone, loot)
+	local s = Session()
+	AddCatch(s, zone, loot)
 	AddCatch(charDB.lifetime, zone, loot)
 	AddCatch(ZoneTotals(zone), zone, loot)
 	AddToLog(zone, loot)
+
+	-- The spot the line went out at, and the realm hour, for each item.
+	local spot = SpotTotals(ZoneTotals(zone), zone == castZone and castSpot or CurrentSpot(zone))
+	spot.catches = spot.catches + 1
+	local hour = GetGameTime()
+	for _, l in ipairs(loot) do
+		spot.items[l.id] = spot.items[l.id] or { count = 0 }
+		spot.items[l.id].count = spot.items[l.id].count + l.quantity
+		local item = charDB.lifetime.items[l.id]
+		item.hours = item.hours or {}
+		item.hours[hour + 1] = (item.hours[hour + 1] or 0) + 1
+	end
+
+	CheckSkill()
+	charDB.skill.catches = (charDB.skill.catches or 0) + 1
+
 	if ns.Collection then
-		ns.Collection.OnCatch(loot, zone)
+		s.newFish = (s.newFish or 0) + (ns.Collection.OnCatch(loot, zone) or 0)
+	end
+	if ns.Extravaganza then
+		ns.Extravaganza.OnCatch(loot)
 	end
 	AlertIfRare(loot)
+	OfferAutoLoot(autoLooted)
 	RefreshIfShown()
 end
 
@@ -384,6 +554,48 @@ local function Append(list, more)
 	return list
 end
 
+-- Each spot in a zone, best fish per hour first: { name, icon, right, spot }.
+local function SpotRows(z)
+	local rows = {}
+	for name, t in pairs(z.spots or {}) do
+		if t.casts > 0 then
+			local topID, topCount
+			for id, item in pairs(t.items) do
+				if not topCount or item.count > topCount then
+					topID, topCount = id, item.count
+				end
+			end
+			local rate = PerHour(t)
+			rows[#rows + 1] = { name = name, spot = t, rate = rate,
+				icon = topID and C_Item.GetItemIconByID(topID) or "Interface\\Icons\\INV_Misc_Fish_68",
+				right = string.format("%d caught%s", t.catches, rate and string.format("  %.0f/hr", rate) or "") }
+		end
+	end
+	table.sort(rows, function(a, b)
+		if (a.rate or -1) ~= (b.rate or -1) then
+			return (a.rate or -1) > (b.rate or -1)
+		end
+		return a.spot.catches > b.spot.catches
+	end)
+	return rows
+end
+
+local function SkillPair(s)
+	local rank, maxRank = FishingSkill()
+	if not rank then
+		return { "Skill gained", "-" }
+	end
+	local gained = SkillGained(s)
+	local text = gained > 0 and string.format("|cff1eff00+%d|r", gained) or "+0"
+	if rank >= maxRank then
+		text = text .. GREY .. "  (at your rank's cap)|r"
+	else
+		local n = CatchesToGo(rank, 1)
+		text = text .. GREY .. string.format("  (next in ~%d catch%s)|r", n, n == 1 and "" or "es")
+	end
+	return { "Skill gained", text }
+end
+
 local function CountRows(rows)
 	for _, r in ipairs(rows) do
 		r.right = "x" .. r.count
@@ -399,12 +611,23 @@ local function BuildView(view)
 		local z = charDB.zoneStats[zone] or NewTotals()
 		local stats = CatchPairs(z)
 		stats[#stats + 1] = { "Got away", tostring(z.escapes or 0) }
+		local spots = SpotRows(z)
+		local best = spots[1]
+		stats[#stats + 1] = { "Best spot", best and (best.name .. (best.rate and string.format(GREY .. "  %.0f/hr|r", best.rate) or ""))
+			or (GREY .. "-|r") }
 		Append(stats, ValuePairs(z.items))
+		if charDB.zoneList == "spots" then
+			return zone, stats, spots, "Spots here", "No spots yet: they're logged from OneCast 0.3.0 on."
+		end
 		return zone, stats, CountRows(SortedItems(z.items)), "Catches here", "Nothing caught here yet."
 	elseif view == "lifetime" then
 		local life = charDB.lifetime
 		local stats = CatchPairs(life)
 		stats[#stats + 1] = { "Zones fished", tostring(CountKeys(life.zones)) }
+		if ns.Collection then
+			local caught, total = ns.Collection.Progress()
+			stats[#stats + 1] = { "Collection", string.format("%d of %d fish", caught, total) }
+		end
 		Append(stats, ValuePairs(life.items))
 		return "Lifetime", stats, CountRows(SortedItems(life.items)), "Catches", "Nothing caught yet."
 	elseif view == "log" then
@@ -425,7 +648,12 @@ local function BuildView(view)
 	local s = Session()
 	local stats = CatchPairs(s)
 	stats[#stats + 1] = { zone, tostring(s.zones[zone] or 0) }
+	stats[#stats + 1] = SkillPair(s)
 	Append(stats, ValuePairs(s.items))
+	local contest = ns.Extravaganza and ns.Extravaganza.StatusLine(zone)
+	if contest then
+		stats[#stats + 1] = { "Extravaganza", contest }
+	end
 	return "Session  " .. FormatDuration(s.start and GetServerTime() - s.start or 0), stats,
 		CountRows(SortedItems(s.items)), "Catches", "Nothing caught yet."
 end
@@ -462,8 +690,9 @@ local function SkillStatus()
 	elseif effective >= needed then
 		verdict = string.format("|cff1eff00%s needs %d: no fish should get away.|r", zone, needed)
 	else
-		verdict = string.format("|cffff4040%s needs %d: %d short, some fish will get away.|r",
-			zone, needed, needed - effective)
+		local short = needed - effective
+		verdict = string.format("|cffff4040%s needs %d: %d short, fish will get away.|r %s~%d catches to go%s.|r",
+			zone, needed, short, GREY, CatchesToGo(rank, short), rank + short > maxRank and " (train first)" or "")
 	end
 	return rank / math.max(maxRank, 1), value, verdict
 end
@@ -686,18 +915,16 @@ local function RankBar(parent, name)
 
 	-- Slide towards the target rank rather than jumping.
 	local current, target, from, started
-	bar:SetScript("OnUpdate", function(self)
-		if not started then
-			return
-		end
+	local function Slide(self)
 		local t = math.min(1, (GetTime() - started) / GROW_TIME)
 		current = from + (target - from) * (1 - (1 - t) ^ 3)
 		self:SetValue(current)
 		spark:SetShown(current > 0.005 and current < 0.995)
 		if t >= 1 then
 			started = nil
+			self:SetScript("OnUpdate", nil) -- idle until the next change
 		end
-	end)
+	end
 
 	function holder:SetRank(fraction, valueText)
 		text:SetText(name .. " " .. valueText)
@@ -711,6 +938,7 @@ local function RankBar(parent, name)
 		from = current or 0
 		target = fraction
 		started = GetTime()
+		bar:SetScript("OnUpdate", Slide)
 		if not self.sweeping then
 			self.sweeping = true
 			sweep:GetScript("OnFinished")()
@@ -829,10 +1057,11 @@ local function ItemRow(parent, index, y)
 
 	row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	row.name:SetPoint("LEFT", row.icon, "RIGHT", 6, 0)
-	row.name:SetPoint("RIGHT", -50, 0)
-	row.name:SetJustifyH("LEFT")
 	row.right = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	row.right:SetPoint("RIGHT", -6, 0)
+	row.name:SetPoint("RIGHT", row.right, "LEFT", -6, 0)
+	row.name:SetJustifyH("LEFT")
+	row.name:SetWordWrap(false)
 
 	row:SetScript("OnClick", function(self, mouseButton)
 		if not self.itemID then
@@ -849,7 +1078,34 @@ local function ItemRow(parent, index, y)
 		end
 	end)
 	row:SetScript("OnEnter", function(self)
-		if self.itemID then
+		local t = self.spot
+		if t then
+			-- A spot on the Zone tab: its numbers and what bites there.
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetText(self.itemName)
+			GameTooltip:AddDoubleLine("Caught", string.format("%d of %d", t.catches, t.casts), 1, 0.82, 0, 1, 1, 1)
+			GameTooltip:AddDoubleLine("Fishing time", FormatDuration(t.activeTime), 1, 0.82, 0, 1, 1, 1)
+			local rate = PerHour(t)
+			GameTooltip:AddDoubleLine("Fish per hour", rate and string.format("%.0f", rate) or "-", 1, 0.82, 0, 1, 1, 1)
+			GameTooltip:AddDoubleLine("Vendor value", Coins(TotalValue(t.items, VendorPrice)), 1, 0.82, 0, 1, 1, 1)
+			local list = {}
+			for id, item in pairs(t.items) do
+				list[#list + 1] = { id = id, count = item.count }
+			end
+			table.sort(list, function(a, b)
+				return a.count > b.count
+			end)
+			if #list > 0 then
+				GameTooltip:AddLine(" ")
+			end
+			for i = 1, math.min(#list, 6) do
+				local name = C_Item.GetItemNameByID(list[i].id) or ("item " .. list[i].id)
+				local color = QualityColor(C_Item.GetItemQualityByID(list[i].id))
+				GameTooltip:AddDoubleLine(name, "x" .. list[i].count, color and color.r or 1, color and color.g or 1,
+					color and color.b or 1, 1, 1, 1)
+			end
+			GameTooltip:Show()
+		elseif self.itemID then
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 			GameTooltip:SetItemByID(self.itemID)
 			GameTooltip:AddLine(" ")
@@ -1018,6 +1274,22 @@ local function CreateWindow()
 	end
 
 	f.listHeader = SectionHeader(inset, LIST_TOP)
+	-- Zone tab: switch the list between the fish caught here and the spots fished.
+	f.listToggle = CreateFrame("Button", nil, f.listHeader, "UIPanelButtonTemplate")
+	f.listToggle:SetSize(64, 18)
+	f.listToggle:SetPoint("RIGHT", -4, 1)
+	f.listToggle:SetScript("OnClick", function()
+		PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+		charDB.zoneList = charDB.zoneList ~= "spots" and "spots" or nil
+		Stats.Refresh()
+	end)
+	f.listToggle:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText(charDB.zoneList == "spots" and "Show the fish caught here"
+			or "Show each spot in this zone, best fish per hour first")
+		GameTooltip:Show()
+	end)
+	f.listToggle:SetScript("OnLeave", GameTooltip_Hide)
 	f.rows = {}
 	for i = 1, MAX_ROWS do
 		f.rows[i] = ItemRow(inset, i, LIST_TOP - 28 - (i - 1) * ITEM_HEIGHT)
@@ -1077,13 +1349,15 @@ local function CreateWindow()
 		end
 	end)
 
-	-- Keep the elapsed time ticking while the window is open.
+	-- Keep the session's elapsed time ticking. The other tabs change only on events.
 	local elapsed = 0
 	f:SetScript("OnUpdate", function(_, dt)
 		elapsed = elapsed + dt
 		if elapsed >= 1 then
 			elapsed = 0
-			Stats.Refresh()
+			if (charDB.view or "session") == "session" then
+				Stats.Refresh()
+			end
 		end
 	end)
 
@@ -1142,12 +1416,15 @@ function Stats.Refresh()
 	end
 
 	frame.listHeader.text:SetText(listTitle)
+	frame.listToggle:SetShown(view == "zone")
+	frame.listToggle:SetText(charDB.zoneList == "spots" and "Fish" or "Spots")
 	for i, row in ipairs(frame.rows) do
 		local r = rows[i]
 		if r then
 			local color = QualityColor(r.quality)
 			row.itemID = r.id
 			row.itemName = r.name
+			row.spot = r.spot
 			row.icon:SetTexture(r.icon)
 			row.name:SetText((r.name or ("item:" .. r.id)) .. (IsWanted(r.id) and " |cffffd100*|r" or ""))
 			if color then
@@ -1160,7 +1437,7 @@ function Stats.Refresh()
 			row.right:SetText(r.right)
 			row:Show()
 		else
-			row.itemID = nil
+			row.itemID, row.spot = nil, nil
 			row:Hide()
 		end
 	end
@@ -1244,9 +1521,10 @@ events:SetScript("OnEvent", function(_, event, ...)
 			charDB.lifetime = charDB.lifetime or NewTotals()
 			charDB.zoneStats = charDB.zoneStats or {}
 			charDB.log = charDB.log or {}
+			charDB.skill = charDB.skill or {}
 		end
 	elseif event == "LOOT_READY" then
-		OnLootReady()
+		OnLootReady(...)
 	elseif event == "UI_ERROR_MESSAGE" then
 		local _, message = ...
 		if ERR_FISH_ESCAPED and message == ERR_FISH_ESCAPED then
@@ -1254,6 +1532,9 @@ events:SetScript("OnEvent", function(_, event, ...)
 		end
 	else
 		-- Item prices finished loading, or the skill changed: redraw.
-		RefreshIfShown()
+		if event == "SKILL_LINES_CHANGED" and charDB then
+			CheckSkill()
+		end
+		ScheduleRefresh()
 	end
 end)

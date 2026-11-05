@@ -2,8 +2,8 @@
 -- caught to Auctionator's own search (Auctionator.API.v1.MultiSearchExact), which runs in
 -- its Shopping tab and stores the prices in its database. The stats window then reads
 -- them back with GetAuctionPriceByItemID, and refreshes when Auctionator's data changes.
--- The search needs the auction house open and is started by a click (the button on the
--- auction house, the stats window button, or /onecast scan).
+-- The search needs the auction house open and is started by a click (the stats window
+-- button, or /onecast scan).
 
 local ADDON, ns = ...
 
@@ -11,7 +11,6 @@ local Prices = {}
 ns.Prices = Prices
 
 local auctionOpen = false
-local scanButton
 local registered = false
 
 local function API()
@@ -80,30 +79,6 @@ local function RegisterForUpdates()
 	end)
 end
 
--- A scan button on the auction house window itself.
-local function AttachScanButton()
-	if scanButton or not Prices.CanScan() then
-		return
-	end
-	local parent = AuctionHouseFrame or AuctionFrame
-	if not parent then
-		return
-	end
-	scanButton = CreateFrame("Button", nil, parent, "UIPanelButtonTemplate")
-	scanButton:SetSize(140, 22)
-	scanButton:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -30, -1)
-	scanButton:SetFrameStrata("HIGH")
-	scanButton:SetText("Scan fish prices")
-	scanButton:SetScript("OnClick", Prices.Scan)
-	scanButton:SetScript("OnEnter", function(self)
-		GameTooltip:SetOwner(self, "ANCHOR_BOTTOM")
-		GameTooltip:SetText("OneCast")
-		GameTooltip:AddLine("Search Auctionator for every fish you've caught.", 1, 1, 1, true)
-		GameTooltip:Show()
-	end)
-	scanButton:SetScript("OnLeave", GameTooltip_Hide)
-end
-
 local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("AUCTION_HOUSE_SHOW")
@@ -116,7 +91,6 @@ events:SetScript("OnEvent", function(_, event)
 	auctionOpen = event == "AUCTION_HOUSE_SHOW"
 	if auctionOpen then
 		RegisterForUpdates()
-		AttachScanButton()
 	end
 	if ns.Stats and ns.Stats.RefreshIfShown then
 		ns.Stats.RefreshIfShown()

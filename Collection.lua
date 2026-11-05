@@ -46,7 +46,8 @@ local function SyncItem(itemID, key, charDB)
 	entry.name = entry.name or item.name
 	entry.icon = entry.icon or item.icon
 	entry.quality = entry.quality or item.quality
-	local mine = { count = item.count, zones = {} }
+	-- hours[h + 1]: catches at realm hour h, logged from 0.3.0 on.
+	local mine = { count = item.count, zones = {}, hours = item.hours }
 	for zone, totals in pairs(charDB.zoneStats or {}) do
 		local here = totals.items[itemID]
 		if here and here.count > 0 then
@@ -71,10 +72,10 @@ function Collection.SyncCharacter()
 	end
 end
 
--- Called by Stats.lua after a catch is counted.
+-- Called by Stats.lua after a catch is counted. Returns how many fish were new.
 function Collection.OnCatch(loot, zone)
 	if not ns.db or not OneCastCharDB then
-		return
+		return 0
 	end
 	local key = CharKey()
 	local newFish = {}
@@ -97,14 +98,15 @@ function Collection.OnCatch(loot, zone)
 	if ns.Book and ns.Book.RefreshIfShown then
 		ns.Book.RefreshIfShown()
 	end
+	return #newFish
 end
 
 -- Everything known about one fish across the account:
 -- { total, chars = { { key, name, class, count }, ... } most first, zones = { [zone] = n },
---   first = { time, char, zone } or nil }
+--   hours = { [h + 1] = catches at realm hour h }, first = { time, char, zone } or nil }
 function Collection.Get(itemID)
 	local entry = Store().items[itemID]
-	local info = { total = 0, chars = {}, zones = {} }
+	local info = { total = 0, chars = {}, zones = {}, hours = {} }
 	if not entry then
 		return info
 	end
@@ -116,6 +118,9 @@ function Collection.Get(itemID)
 			info.chars[#info.chars + 1] = { key = key, name = who.name or key, class = who.class, count = mine.count }
 			for zone, n in pairs(mine.zones) do
 				info.zones[zone] = (info.zones[zone] or 0) + n
+			end
+			for h, n in pairs(mine.hours or {}) do
+				info.hours[h] = (info.hours[h] or 0) + n
 			end
 		end
 	end
@@ -138,6 +143,32 @@ function Collection.Discovered()
 		end
 	end
 	return list
+end
+
+-- Fish collected and fish in the book, counting discovered ones.
+function Collection.Progress()
+	local caught, total = 0, 0
+	for _, fish in ipairs(ns.FISH) do
+		total = total + 1
+		if Collection.Get(fish.id).total > 0 then
+			caught = caught + 1
+		end
+	end
+	local found = #Collection.Discovered()
+	return caught + found, total + found
+end
+
+-- Every zone any character has caught a fish in.
+function Collection.CaughtZones()
+	local zones = {}
+	for _, entry in pairs(Store().items) do
+		for _, mine in pairs(entry.byChar) do
+			for zone in pairs(mine.zones) do
+				zones[zone] = true
+			end
+		end
+	end
+	return zones
 end
 
 local events = CreateFrame("Frame")

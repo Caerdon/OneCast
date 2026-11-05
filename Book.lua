@@ -1,7 +1,8 @@
 -- OneCast collection book: every fish (FishData.lua) on two parchment pages, caught ones in
 -- colour with a tick and your count, missing ones greyed out. Click a fish for its own
--- spread: the game's flavour text, a summary, your catches by character, where to catch
--- it with a map of the zone, and the recipes it's used in. Catch data comes from
+-- spread: the game's flavour text, a summary, your catches by character and time of day,
+-- where to catch it with a map of the zone, and the recipes it's used in. The grid filters
+-- by category, caught or missing, zone and a name search. Catch data comes from
 -- Collection.lua and is shared by all your characters.
 
 local ADDON, ns = ...
@@ -24,6 +25,11 @@ local CATEGORIES = {
 	{ key = "bloated", label = "Bloated" },
 }
 local CAT_ORDER = { fish = 1, special = 2, trophy = 3, bloated = 4 }
+-- FishData's `when`: fish that bite only at some hours in Classic.
+local WHEN_TEXT = {
+	night = "In Classic it bites only at night, 18:00-06:00 realm time.",
+	day = "In Classic it bites only by day, 06:00-18:00 realm time.",
+}
 local CAT_NAME = { fish = "Fish", special = "Special catch", trophy = "Trophy fish", bloated = "Bloated fish" }
 local CAT_LEAD = {
 	fish = "A fish",
@@ -41,6 +47,8 @@ local LEAD = "|cff7a2a00"
 local SOFT = "|cff6b5233"
 
 local frame
+-- cat, show, where (zone filter) and search pick the fish; spread is the grid's page pair;
+-- fishID and zone are the open fish page and its selected zone.
 local state = { cat = "all", show = "all", spread = 1 }
 
 local function TryCreate(frameType, name, parent, template)
@@ -100,25 +108,53 @@ local function AllFish()
 	return list
 end
 
-local function Progress()
-	local caught, total = 0, 0
-	for _, fish in ipairs(AllFish()) do
-		total = total + 1
-		if ns.Collection.Get(fish.id).total > 0 then
-			caught = caught + 1
+-- Whether the fish is known to bite in `zone`, or has been caught there.
+local function FoundIn(fish, info, zone)
+	if info.zones[zone] then
+		return true
+	end
+	for _, z in ipairs(fish.zones or {}) do
+		if z == zone then
+			return true
 		end
 	end
-	return caught, total
+	for _, extra in ipairs(fish.more or {}) do
+		if extra[1] == zone then
+			return true
+		end
+	end
+	return false
 end
 
--- The fish on show: chosen category and caught/missing filter, easiest waters first.
+-- Every zone a fish is known from or has been caught in, for the zone filter.
+local function ZoneChoices()
+	local set = ns.Collection.CaughtZones()
+	for _, fish in ipairs(ns.FISH) do
+		for _, z in ipairs(fish.zones or {}) do
+			set[z] = true
+		end
+		for _, extra in ipairs(fish.more or {}) do
+			set[extra[1]] = true
+		end
+	end
+	local list = {}
+	for z in pairs(set) do
+		list[#list + 1] = z
+	end
+	table.sort(list)
+	return list
+end
+
+-- The fish on show: chosen category, caught/missing, zone and search, easiest waters first.
 local function Filtered()
 	local out = {}
 	for _, fish in ipairs(AllFish()) do
-		if state.cat == "all" or fish.cat == state.cat then
+		if (state.cat == "all" or fish.cat == state.cat)
+			and (not state.search or FishName(fish):lower():find(state.search, 1, true)) then
 			local info = ns.Collection.Get(fish.id)
 			local caught = info.total > 0
-			if state.show == "all" or (state.show == "caught") == caught then
+			if (state.show == "all" or (state.show == "caught") == caught)
+				and (not state.where or FoundIn(fish, info, state.where)) then
 				out[#out + 1] = { fish = fish, info = info, skill = EasiestSkill(fish) }
 			end
 		end
@@ -189,24 +225,67 @@ local function Summary(fish)
 		end
 		text = text .. " Used in " .. table.concat(parts, " and ") .. "."
 	end
+	if fish.when then
+		text = text .. " " .. WHEN_TEXT[fish.when]
+	end
+	if fish.event == "extravaganza" and ns.Extravaganza then
+		text = text .. " " .. ns.Extravaganza.Describe()
+	end
 	if fish.discovered then
 		text = text .. " Not in OneCast's records yet: you found this one yourself."
 	end
 	return text
 end
 
+-- When your own catches were made, by realm hour (logged from 0.3.0 on).
+local function TimeOfDay(info)
+	local day, night = 0, 0
+	for h, n in pairs(info.hours or {}) do
+		if h - 1 >= 6 and h - 1 < 18 then
+			day = day + n
+		else
+			night = night + n
+		end
+	end
+	local total = day + night
+	if total == 0 then
+		return nil
+	end
+	local lead = total == 1 and "Your one logged catch was" or ("All " .. total .. " logged catches were")
+	if night == 0 then
+		return lead .. " by day (06:00-18:00 realm time)."
+	elseif day == 0 then
+		return lead .. " at night (18:00-06:00 realm time)."
+	end
+	return string.format("Caught %d time%s by day and %d at night (realm time).", day, day == 1 and "" or "s", night)
+end
+
 -- Zone maps ------------------------------------------------------------------------------
 
-local zoneMaps
+-- Zone name to uiMapID: every zone under Azeroth (947) in one call. A zone not found there
+-- (one of Forever's own, say) falls back to a one-time scan of every map ID.
+local zoneMaps, scanned
+local ZONE_TYPE = Enum.UIMapType and Enum.UIMapType.Zone or 3
+
+local function ScanMaps()
+	scanned = true
+	for mapID = 1, 3000 do
+		local info = C_Map.GetMapInfo(mapID)
+		if info and info.name and info.mapType == ZONE_TYPE then
+			zoneMaps[info.name] = zoneMaps[info.name] or mapID
+		end
+	end
+end
+
 local function ZoneMapID(zone)
 	if not zoneMaps then
 		zoneMaps = {}
-		for mapID = 1, 3000 do
-			local info = C_Map.GetMapInfo(mapID)
-			if info and info.name and info.mapType == (Enum.UIMapType and Enum.UIMapType.Zone or 3) then
-				zoneMaps[info.name] = zoneMaps[info.name] or mapID
-			end
+		for _, info in ipairs(C_Map.GetMapChildrenInfo and C_Map.GetMapChildrenInfo(947, ZONE_TYPE, true) or {}) do
+			zoneMaps[info.name] = zoneMaps[info.name] or info.mapID
 		end
+	end
+	if zone and not zoneMaps[zone] and not scanned then
+		ScanMaps()
 	end
 	return zoneMaps[zone]
 end
@@ -488,15 +567,25 @@ local function RenderGrid()
 		end
 		page.number:SetText((state.spread - 1) * 2 + p)
 	end
-	local label = "Fish of Azeroth"
+	local label = state.where and "Fish" or "Fish of Azeroth"
 	for _, cat in ipairs(CATEGORIES) do
 		if cat.key == state.cat and cat.key ~= "all" then
 			label = cat.label
 		end
 	end
+	if state.where then
+		label = label .. " of " .. state.where
+	end
 	frame.pages[1].title:SetText(label)
 	frame.pages[2].title:SetText(#list == 0 and "" or string.format("%d shown", #list))
 	frame.empty:SetShown(#list == 0)
+	if state.show == "missing" and not state.search then
+		frame.empty:SetText("Nothing missing here: all caught!")
+	elseif state.search or state.where or state.show ~= "all" then
+		frame.empty:SetText("No fish match.")
+	else
+		frame.empty:SetText("Nothing here yet.")
+	end
 	frame.pageLabel:SetText(string.format("Pages %d-%d of %d", state.spread * 2 - 1, state.spread * 2, spreads * 2))
 	frame.prev:SetEnabled(state.spread > 1)
 	frame.next:SetEnabled(state.spread < spreads)
@@ -580,10 +669,14 @@ local function RenderLeft(fish, info)
 			end
 			Paragraph(string.format("%s  %s%d|r", who.name, LEAD, who.count), INK, 4)
 		end
+		y = y + 6
 		if info.first then
-			y = y + 6
 			Paragraph(string.format("%sFirst caught on %s by %s%s.|r", SOFT, date("%d %B %Y", info.first.time),
-				info.first.char or "?", info.first.zone and (" in " .. info.first.zone) or ""), INK)
+				info.first.char or "?", info.first.zone and (" in " .. info.first.zone) or ""), INK, 4)
+		end
+		local when = TimeOfDay(info)
+		if when then
+			Paragraph(SOFT .. when .. "|r", INK)
 		end
 	else
 		local tip = (fish.zones and fish.zones[1]) or (fish.more and fish.more[1] and fish.more[1][1])
@@ -892,8 +985,39 @@ local function CreateWindow()
 		end
 		Book.Refresh()
 	end)
+	-- Zone filter: a menu of every zone, with this one first ("what's left here?").
+	f.where = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+	f.where:SetSize(170, 22)
+	f.where:SetPoint("LEFT", f.back, "RIGHT", 4, 0)
+	f.where:SetScript("OnClick", function(self)
+		Book.OpenZoneMenu(self)
+	end)
+	f.where:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText("Zone")
+		GameTooltip:AddLine("Show only the fish of one zone. Pick yours, then Showing: missing, to see what's left to catch here.",
+			1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	f.where:SetScript("OnLeave", GameTooltip_Hide)
+
+	-- Search by name.
+	f.search = TryCreate("EditBox", "OneCastBookSearchBox", f, "SearchBoxTemplate")
+		or CreateFrame("EditBox", "OneCastBookSearchBox", f, "InputBoxTemplate")
+	f.search:SetSize(150, 20)
+	f.search:SetAutoFocus(false)
+	f.search:SetPoint("LEFT", f.where, "RIGHT", 12, 0)
+	f.search:HookScript("OnTextChanged", function(self)
+		local text = strtrim(self:GetText() or ""):lower()
+		text = text ~= "" and text or nil
+		if text ~= state.search then
+			state.search, state.spread, state.fishID = text, 1, nil
+			Book.Refresh()
+		end
+	end)
+	f.search:HookScript("OnEnterPressed", f.search.ClearFocus)
+
 	f.pageLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-	f.pageLabel:SetPoint("BOTTOM", 0, 9)
 	f.next = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	f.next:SetSize(100, 22)
 	f.next:SetPoint("BOTTOMRIGHT", -10, 4)
@@ -910,6 +1034,7 @@ local function CreateWindow()
 	f.prev:SetSize(100, 22)
 	f.prev:SetPoint("RIGHT", f.next, "LEFT", -4, 0)
 	f.prev:SetText("Previous")
+	f.pageLabel:SetPoint("RIGHT", f.prev, "LEFT", -12, 0)
 	f.prev:SetScript("OnClick", function()
 		if state.fishID and state.index then
 			state.fishID, state.zone = state.list[state.index - 1].fish.id, nil
@@ -948,7 +1073,7 @@ function Book.Refresh()
 		end
 	end
 
-	local caught, total = Progress()
+	local caught, total = ns.Collection.Progress()
 	frame.progressText:SetText(string.format("Collected |cffffffff%d|r of %d", caught, total))
 	frame.progress:SetValue(total > 0 and caught / total or 0)
 
@@ -964,6 +1089,44 @@ function Book.Refresh()
 		page.number:SetShown(not showFish)
 	end
 	frame.back:SetText(showFish and "Back to collection" or SHOW_LABEL[state.show])
+	frame.where:SetShown(not showFish)
+	frame.where:SetText(state.where or "All zones")
+	frame.search:SetShown(not showFish)
+end
+
+local function SetWhere(zone)
+	state.where, state.spread, state.fishID = zone, 1, nil
+	Book.Refresh()
+end
+
+function Book.OpenZoneMenu(owner)
+	local here = GetRealZoneText()
+	here = here ~= "" and here or nil
+	if not (MenuUtil and MenuUtil.CreateContextMenu) then
+		-- No menu API: switch between every zone and this one.
+		SetWhere(not state.where and here or nil)
+		return
+	end
+	MenuUtil.CreateContextMenu(owner, function(_, root)
+		local function Radio(text, zone)
+			root:CreateRadio(text, function()
+				return state.where == zone
+			end, function()
+				SetWhere(zone)
+			end)
+		end
+		Radio("All zones", nil)
+		if here then
+			Radio("Here: " .. here, here)
+		end
+		root:CreateDivider()
+		for _, zone in ipairs(ZoneChoices()) do
+			Radio(zone, zone)
+		end
+		if root.SetScrollMode then
+			root:SetScrollMode(400)
+		end
+	end)
 end
 
 function Book.RefreshIfShown()

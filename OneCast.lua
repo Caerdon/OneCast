@@ -33,6 +33,9 @@ local defaults = {
 	autoEquip = true,
 	restoreOnCombat = true,
 	restoreDelay = 60, -- seconds without casting before weapons go back on; 0 = never
+	sessionSummary = true,
+	autoLootHint = true,
+	extravaganza = true,
 }
 
 -- Options shown in the settings panel and toggled by /onecast <cmd>, in display order.
@@ -51,6 +54,12 @@ local OPTIONS = {
 		tooltip = "Open the stats window when you start fishing. If you close it (X or minimap button), it stays closed until you take a 2-minute break from fishing." },
 	{ cmd = "alert", key = "alert", label = "Rare catch alert",
 		tooltip = "Sound and a raid-warning flash when you catch something at or above the alert quality, or an item you've marked as wanted (right-click it in the stats window)." },
+	{ cmd = "summary", key = "sessionSummary", label = "Session summary in chat",
+		tooltip = "After a 2-minute break from fishing, sum up the session in chat: catches, fish per hour, vendor value, skill gained and new fish for your collection." },
+	{ cmd = "autoloot", key = "autoLootHint", label = "Offer to turn on auto loot",
+		tooltip = "If auto loot is off when you catch something, offer once per login to turn it on, so catches go straight to your bags." },
+	{ cmd = "extravaganza", key = "extravaganza", label = "Fishing Extravaganza reminders",
+		tooltip = "Say in chat shortly before the Stranglethorn Fishing Extravaganza starts, and when it does (Classic's schedule: Sundays 14:00-16:00 realm time)." },
 	{ cmd = "loginmessage", key = "loginMessage", label = "Version in chat at login",
 		tooltip = "Say OneCast's version in chat when you log in, with a link to What's new." },
 	{ cmd = "minimap", key = "minimapButton", label = "Show minimap button",
@@ -392,6 +401,10 @@ local function SetupMinimapButton()
 		GameTooltip:AddDoubleLine("OneCast", "v" .. ns.VERSION, nil, nil, nil, 0.6, 0.6, 0.6)
 		GameTooltip:AddLine("Cast / reel: " .. BoundKeysText(), 1, 1, 1)
 		GameTooltip:AddLine(ns.Stats.Summary(), 1, 1, 1)
+		local contest = ns.Extravaganza and ns.Extravaganza.StatusLine(GetRealZoneText())
+		if contest then
+			GameTooltip:AddLine("Fishing Extravaganza: " .. contest, 1, 1, 1)
+		end
 		GameTooltip:AddLine("Left-click: options", 0.8, 0.8, 0.8)
 		GameTooltip:AddLine("Right-click: session stats", 0.8, 0.8, 0.8)
 		GameTooltip:AddLine("Shift-click: fishing collection", 0.8, 0.8, 0.8)
