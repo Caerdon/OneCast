@@ -6,6 +6,16 @@ local _, ns = ...
 
 ns.CHANGELOG = {
 	{
+		version = "0.4.0",
+		date = "7 November 2026",
+		sections = {
+			{ "New", {
+				{ "Fishing levels for every zone.", "The collection book has a new Zones tab: every zone by the Fishing skill it needs, checked against your own skill, with how many of its fish you've caught. Click a zone to see its fish. These are Classic's numbers, as Forever's aren't published yet, and zones with no known level are judged from your own catches and getaways. Thanks to Lintence for the idea!" },
+				{ "Levels in the zone filter.", "The book's zone menu now shows each zone's level too." },
+			} },
+		},
+	},
+	{
 		version = "0.3.1",
 		date = "6 November 2026",
 		sections = {

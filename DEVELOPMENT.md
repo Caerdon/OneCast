@@ -27,7 +27,7 @@ Each cast and reel is still one hardware press; nothing is automated.
 | `Collection.lua` | Account-wide record of which characters caught each fish, synced from each character's stats |
 | `Extravaganza.lua` | The Stranglethorn Fishing Extravaganza: schedule (Classic's), Tastyfish counter and reminders |
 | `MapOverlays.lua` | Every explored-area overlay of each zone map, so the book's maps show fully revealed (generated from game data) |
-| `Book.lua` | The collection book window: fish grid and each fish's page with zones, map and recipes |
+| `Book.lua` | The collection book window: fish grid, each fish's page with zones, map and recipes, and the Zones view of every zone's level |
 | `Changelog.lua` | Release notes, shown in the What's new window and used for releases |
 | `WhatsNew.lua` | The What's new window and the login chat line |
 | `Media/*.tga` | Button glyphs: white with a dark outline, tinted gold in game |
@@ -39,7 +39,7 @@ Each cast and reel is still one hardware press; nothing is automated.
 - **Opens on cast:** closing the window with its X or the minimap button keeps it closed until a 2-minute break from fishing; Escape, Alt+Z and cutscenes don't count.
 - **Spots, hours and skill-ups:** each zone's totals keep `spots` by sub-zone (`GetSubZoneText` at the cast). Lifetime items keep `hours`, catches by realm hour (`GetGameTime`), which the collection copies for the book's time of day. `OneCastCharDB.skill` counts catches since the last skill-up; the next-point estimate uses Classic's rule of thumb (1 catch per point to 75, then one more per 25 points).
 - **Session summary** prints after `ACTIVE_GAP` (2 minutes) without a cast, once per stretch of new catches.
-- **Zone levels** are keyed by English zone name (`GetRealZoneText`). The Zone tab counts real getaways (`ERR_FISH_ESCAPED`), and zones without data are judged from them.
+- **Zone levels** are keyed by English zone name (`GetRealZoneText`). The Zone tab counts real getaways (`ERR_FISH_ESCAPED`), and zones without data are judged from them. `Stats.ZoneStatus` holds that judgement, and both the stats window and the book's Zones view read it.
 - **Auction prices** come from Auctionator (`GetAuctionPriceByItemID`) or TSM (`dbmarket`). The scan hands every caught item to Auctionator's `MultiSearchExact`.
 - **Wanted items** are account-wide (`OneCastDB.wanted`); stats are per character (`OneCastCharDB`).
 - **Collection:** `OneCastDB.collection.items[itemID].byChar[character]` holds each character's count and zones, copied from that character's `OneCastCharDB` at login and after each catch, so earlier catches count and nothing is counted twice. Any "Meat" trade good you fish up that isn't in `FishData.lua` joins the book as a discovered fish.

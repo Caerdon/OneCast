@@ -658,42 +658,83 @@ local function BuildView(view)
 		CountRows(SortedItems(s.items)), "Catches", "Nothing caught yet."
 end
 
+-- What's known about fishing in a zone, for this character. `kind` is:
+--   "note"     a reported quirk (ZONE_FISHING_NOTE), until a fish gets away there
+--   "getaways" no known level, and fish have got away here
+--   "clear"    no known level, and 10 or more catches with no getaways
+--   "unknown"  no known level, and too little to go on
+--   "level"    a known level, but this character's skill can't be read
+--   "ok"       skill meets the known level
+--   "short"    skill is `short` points below the known level
+-- Shared by the stats window and the book's Zones view, so the two can't disagree.
+function Stats.ZoneStatus(zone)
+	local rank, _, modifier = FishingSkill()
+	local here = charDB.zoneStats[zone]
+	local status = {
+		needed = ns.ZONE_FISHING_SKILL and ns.ZONE_FISHING_SKILL[zone],
+		note = ns.ZONE_FISHING_NOTE and ns.ZONE_FISHING_NOTE[zone],
+		escapes = here and here.escapes or 0,
+		catches = here and here.catches or 0,
+	}
+	if status.note and status.escapes == 0 then
+		-- A reported quirk, not a measured level, so it gives way to real getaways.
+		status.kind = "note"
+	elseif not status.needed then
+		-- No data for this zone: judge from what has actually happened here.
+		if status.escapes > 0 then
+			status.kind = "getaways"
+		elseif status.catches >= 10 then
+			status.kind = "clear"
+		else
+			status.kind = "unknown"
+		end
+	elseif not rank then
+		status.kind = "level"
+	elseif rank + modifier >= status.needed then
+		status.kind = "ok"
+	else
+		status.kind = "short"
+		status.short = status.needed - rank - modifier
+	end
+	return status
+end
+
+-- The zone's status as a coloured sentence, for dark backgrounds.
+function Stats.ZoneVerdict(zone)
+	local rank, maxRank = FishingSkill()
+	if not rank then
+		return GREY .. "Fishing skill not found.|r"
+	end
+	local status = Stats.ZoneStatus(zone)
+	if status.kind == "note" then
+		return string.format("|cff1eff00%s: %s.|r", zone, status.note)
+	elseif status.kind == "getaways" then
+		return string.format("|cffff4040%s: level unknown, but %d fish got away here: skill too low.|r",
+			zone, status.escapes)
+	elseif status.kind == "clear" then
+		return string.format("|cff1eff00%s: level unknown, but no fish got away in %d catches.|r",
+			zone, status.catches)
+	elseif status.kind == "unknown" then
+		return GREY .. zone .. ": fishing level unknown. Getaways here will show if your skill is too low.|r"
+	elseif status.kind == "ok" then
+		return string.format("|cff1eff00%s needs %d: no fish should get away.|r", zone, status.needed)
+	end
+	return string.format("|cffff4040%s needs %d: %d short, fish will get away.|r %s~%d catches to go%s.|r",
+		zone, status.needed, status.short, GREY, CatchesToGo(rank, status.short),
+		rank + status.short > maxRank and " (train first)" or "")
+end
+
+Stats.FishingSkill = FishingSkill
+
 -- Skill bar fraction, value text and the verdict for the current zone.
 local function SkillStatus()
 	local rank, maxRank, modifier = FishingSkill()
-	local zone = CurrentZone()
-	local needed = ns.ZONE_FISHING_SKILL and ns.ZONE_FISHING_SKILL[zone]
+	local verdict = Stats.ZoneVerdict(CurrentZone())
 	if not rank then
-		return 0, "?", GREY .. "Fishing skill not found.|r"
+		return 0, "?", verdict
 	end
-	local effective = rank + modifier
 	local value = modifier > 0 and string.format("%d|cff1eff00+%d|r/%d", rank, modifier, maxRank)
 		or string.format("%d/%d", rank, maxRank)
-	local verdict
-	local here = charDB.zoneStats[zone]
-	local escapes = here and here.escapes or 0
-	local note = ns.ZONE_FISHING_NOTE and ns.ZONE_FISHING_NOTE[zone]
-	if note and escapes == 0 then
-		-- A reported quirk, not a measured level, so it gives way to real getaways.
-		verdict = string.format("|cff1eff00%s: %s.|r", zone, note)
-	elseif not needed then
-		-- No data for this zone: judge from what has actually happened here.
-		if here and (here.escapes or 0) > 0 then
-			verdict = string.format("|cffff4040%s: level unknown, but %d fish got away here: skill too low.|r",
-				zone, here.escapes)
-		elseif here and here.catches >= 10 then
-			verdict = string.format("|cff1eff00%s: level unknown, but no fish got away in %d catches.|r",
-				zone, here.catches)
-		else
-			verdict = GREY .. zone .. ": fishing level unknown. Getaways here will show if your skill is too low.|r"
-		end
-	elseif effective >= needed then
-		verdict = string.format("|cff1eff00%s needs %d: no fish should get away.|r", zone, needed)
-	else
-		local short = needed - effective
-		verdict = string.format("|cffff4040%s needs %d: %d short, fish will get away.|r %s~%d catches to go%s.|r",
-			zone, needed, short, GREY, CatchesToGo(rank, short), rank + short > maxRank and " (train first)" or "")
-	end
 	return rank / math.max(maxRank, 1), value, verdict
 end
 

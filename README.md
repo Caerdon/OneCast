@@ -23,6 +23,7 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - See which you've caught, on which characters, and how many. The rest wait greyed out, with your progress at the top.
 - Click any fish for **its own page**: the game's description, your catches on every character, when and where you first caught it, whether you caught it **by day or at night**, every zone it's caught in with a **map**, and the **recipes** it's used in, including WoW Forever's new ones.
 - **Filter by zone and search by name.** Pick your zone and show what's missing to see what's left to catch here.
+- **Zones tab:** every zone's fishing level at a glance, checked against your skill, with how many of its fish you've caught. Click a zone to see its fish.
 - Shared across all your characters, including everything caught before you installed it.
 - Catch a fish none of your characters has and chat tells you it's **new for your collection**.
 
