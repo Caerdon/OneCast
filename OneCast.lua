@@ -38,33 +38,52 @@ local defaults = {
 	sessionSummary = true,
 	autoLootHint = true,
 	extravaganza = true,
+	bagWarning = true,
+	tackleBox = true,
+	lureVendorHint = true,
+	rememberPools = true,
+}
+-- Per character: skill and bags differ, and lures get used up.
+local charDefaults = {
+	autoLure = false,
+	lureChoice = 0, -- Lure.NONE
 }
 
 -- Options shown in the settings panel and toggled by /onecast <cmd>, in display order.
 local OPTIONS = {
-	{ cmd = "doubleclick", key = "doubleClick", label = "Double right-click to cast",
+	{ section = "Casting", cmd = "doubleclick", key = "doubleClick", label = "Double right-click to cast",
 		tooltip = "With a fishing pole equipped, double right-click the world to cast. Right-click the bobber to reel in." },
 	{ cmd = "softinteract", key = "softInteract", label = "Soft-interact while fishing",
 		tooltip = "While the line is out, make the bobber the soft-interact target so the cast key reels it in." },
-	{ cmd = "sound", key = "soundBoost", label = "Louder splash while fishing",
+	{ cmd = "bagwarning", key = "bagWarning", label = "Warn when your bags are full",
+		tooltip = "Warn once when you cast with no free bag space, because a catch may not fit." },
+	{ section = "Sound", cmd = "sound", key = "soundBoost", label = "Louder splash while fishing",
 		tooltip = "While the line is out, turn sound effects up to full so the splash is easy to hear." },
 	{ cmd = "quiet", key = "quietOthers", label = "Quiet other sounds while fishing",
 		tooltip = "While your fishing pole is equipped, turn music, ambience and dialog down (or off) so the splash stands out. They go back to your own levels when your weapons go back on, or if you change them yourself." },
-	{ cmd = "autoequip", key = "autoEquip", label = "Auto-equip fishing pole",
+	{ section = "Pole and weapons", cmd = "autoequip", key = "autoEquip", label = "Auto-equip fishing pole",
 		tooltip = "If no pole is equipped, the cast key equips the best one in your bags first (press again to cast). Your weapons are saved and put back afterwards." },
 	{ cmd = "combatgear", key = "restoreOnCombat", label = "Re-equip weapons when combat starts",
 		tooltip = "Try to put your weapons back the moment combat starts. Anything the game blocks in combat is finished when combat ends." },
-	{ cmd = "autoopen", key = "openOnCast", label = "Open stats when you cast",
+	{ section = "Tackle box", cmd = "tacklebox", key = "tackleBox", label = "Show the tackle box button",
+		tooltip = "Show a small button while a fishing pole is in your main hand, with your lure and its time left. Left-click applies your lure, right-click opens its settings, Shift-drag moves it." },
+	{ cmd = "autolure", key = "autoLure", char = true, label = "Apply lure with the cast key",
+		tooltip = "With no lure on your pole, the cast key applies your chosen lure first, then casts on the next press. It uses up the lure, so it's off until you turn it on. Set for each character." },
+	{ cmd = "lurevendor", key = "lureVendorHint", label = "Low lure hint at vendors",
+		tooltip = "At a vendor selling your chosen lure, say so in chat if you have fewer than 5. Buying stays up to you." },
+	{ section = "Stats window", cmd = "autoopen", key = "openOnCast", label = "Open stats when you cast",
 		tooltip = "Open the stats window when you start fishing. If you close it (X or minimap button), it stays closed until you take a 2-minute break from fishing." },
-	{ cmd = "alert", key = "alert", label = "Rare catch alert",
-		tooltip = "Sound and a raid-warning flash when you catch something at or above the alert quality, or an item you've marked as wanted (right-click it in the stats window)." },
 	{ cmd = "summary", key = "sessionSummary", label = "Session summary in chat",
 		tooltip = "After a 2-minute break from fishing, sum up the session in chat: catches, fish per hour, vendor value, skill gained and new fish for your collection." },
 	{ cmd = "autoloot", key = "autoLootHint", label = "Offer to turn on auto loot",
 		tooltip = "If auto loot is off when you catch something, offer once per login to turn it on, so catches go straight to your bags." },
+	{ section = "Collection and alerts", cmd = "alert", key = "alert", label = "Rare catch alert",
+		tooltip = "Sound and a raid-warning flash when you catch something at or above the alert quality, or an item you've marked as wanted (right-click it in the stats window)." },
+	{ cmd = "pools", key = "rememberPools", label = "Remember fishing pools",
+		tooltip = "Hover over a fishing pool with your pole on and cast, and the spot you fished it from is marked on the collection book's zone maps. Pools move, so a mark shows where one has been. English pool names only. /onecast forgetpools clears them." },
 	{ cmd = "extravaganza", key = "extravaganza", label = "Fishing Extravaganza reminders",
 		tooltip = "Say in chat shortly before the Stranglethorn Fishing Extravaganza starts, and when it does (Classic's schedule: Sundays 14:00-16:00 realm time)." },
-	{ cmd = "loginmessage", key = "loginMessage", label = "Version in chat at login",
+	{ section = "Interface", cmd = "loginmessage", key = "loginMessage", label = "Version in chat at login",
 		tooltip = "Say OneCast's version in chat when you log in, with a link to What's new." },
 	{ cmd = "minimap", key = "minimapButton", label = "Show minimap button",
 		tooltip = "Show the OneCast button on the minimap. Drag it to move it." },
@@ -109,6 +128,9 @@ end
 ns.Print = Print
 ns.GetFishingName = function()
 	return fishingName
+end
+ns.IsFishing = function()
+	return fishing
 end
 
 local function SpellName(spellID)
@@ -187,6 +209,28 @@ local function UpdateQuiet(reapply)
 	end
 end
 
+-- Warn once each time the bags fill up, when a line goes out.
+local bagsFullWarned = false
+
+local function CheckBagSpace()
+	local free = 0
+	for bag = 0, NUM_BAG_SLOTS or 4 do
+		local slots, family = C_Container.GetContainerNumFreeSlots(bag)
+		if (family or 0) == 0 then
+			free = free + (slots or 0)
+		end
+	end
+	if free > 0 then
+		bagsFullWarned = false
+	elseif db.bagWarning and not bagsFullWarned then
+		bagsFullWarned = true
+		Print("your bags are full, so a catch may not fit.")
+		if UIErrorsFrame then
+			UIErrorsFrame:AddMessage("Your bags are full", 1, 0.3, 0.1)
+		end
+	end
+end
+
 local function StartReelMode()
 	if InCombatLockdown() then
 		return
@@ -209,19 +253,42 @@ local function StopReelMode()
 	ReleaseCVars("cast")
 end
 
+local equippingPress = false -- the key went down and equipped a pole, and hasn't come up yet
+
 -- The secure cast button. Attributes are set once, out of combat, at login.
 local button = CreateFrame("Button", BUTTON_NAME, UIParent, "SecureActionButtonTemplate")
 button:RegisterForClicks("AnyUp", "AnyDown")
 button:SetAttribute("type", "spell")
-button:HookScript("PreClick", function(self)
-	-- No pole equipped: this press equips one from the bags (Gear.lua) instead of casting.
-	if not InCombatLockdown() and ns.Gear.PreClick() then
+button:HookScript("PreClick", function(self, _, down)
+	if InCombatLockdown() then
+		return
+	end
+	-- The pole can land before the key comes up: the press that equipped it stays spent.
+	local equippedOnDown = equippingPress
+	equippingPress = false
+	if equippedOnDown and not down then
 		self:SetAttribute("type", nil)
+		return
+	end
+	-- No pole equipped: this press equips one from the bags (Gear.lua) instead of casting.
+	if ns.Gear.PreClick() then
+		self:SetAttribute("type", nil)
+		equippingPress = down
+		return
+	end
+	-- A lure wanted, or one going on: this press applies it or waits, instead of casting.
+	local lure = ns.Lure.CastPress(down)
+	if lure == "wait" then
+		self:SetAttribute("type", nil)
+	elseif lure then
+		self:SetAttribute("type", "macro")
+		self:SetAttribute("macrotext", lure)
 	end
 end)
 button:HookScript("PostClick", function(self)
 	if not InCombatLockdown() then
 		self:SetAttribute("type", "spell")
+		self:SetAttribute("macrotext", nil)
 		-- The double-click override is one-shot: hand right-click back to the camera.
 		ClearOverrideBindings(clickOwner)
 	end
@@ -318,22 +385,49 @@ local function SetupSettings()
 			end
 		end
 	end
-	if CreateSettingsListSectionHeaderInitializer then
-		layout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Options"))
-	end
-
+	ns.optionSettings = {}
 	for _, opt in ipairs(OPTIONS) do
+		if opt.section and CreateSettingsListSectionHeaderInitializer then
+			layout:AddInitializer(CreateSettingsListSectionHeaderInitializer(opt.section))
+		end
+		local default = defaults[opt.key]
+		if opt.char then
+			default = charDefaults[opt.key]
+		end
 		local setting = Settings.RegisterAddOnSetting(category, "OneCast_" .. opt.key, opt.key,
-			db, "boolean", opt.label, defaults[opt.key])
+			opt.char and OneCastCharDB or db, "boolean", opt.label, default)
 		if opt.key == "minimapButton" then
 			setting:SetValueChangedCallback(UpdateMinimapVisibility)
 		elseif opt.key == "quietOthers" then
 			setting:SetValueChangedCallback(function()
 				UpdateQuiet()
 			end)
+		elseif opt.key == "tackleBox" or opt.key == "autoLure" then
+			setting:SetValueChangedCallback(function()
+				ns.Lure.OnSettingChanged()
+			end)
 		end
 		Settings.CreateCheckbox(category, setting, opt.tooltip)
 		opt.setting = setting
+		ns.optionSettings[opt.key] = setting
+
+		if opt.key == "tackleBox" and Settings.CreateDropdown and Settings.CreateControlTextContainer then
+			local choice = Settings.RegisterAddOnSetting(category, "OneCast_lureChoice", "lureChoice",
+				OneCastCharDB, "number", "Lure to use", charDefaults.lureChoice)
+			choice:SetValueChangedCallback(function()
+				ns.Lure.OnSettingChanged()
+			end)
+			ns.optionSettings.lureChoice = choice
+			Settings.CreateDropdown(category, choice, function()
+				local container = Settings.CreateControlTextContainer()
+				container:Add(ns.Lure.NONE, "No lure")
+				container:Add(ns.Lure.BEST, "Best I can use")
+				for _, lure in ipairs(ns.Lure.LIST) do
+					container:Add(lure.id, string.format("%s (+%d)", ns.Lure.Name(lure), lure.bonus))
+				end
+				return container:GetData()
+			end, "The lure the tackle box, the Apply lure key and the cast key use. Your choice is never swapped for another: if it runs out, OneCast fishes without one. \"Best I can use\" can spend your rarest lures. Set for each character.")
+		end
 
 		if opt.key == "autoEquip" and Settings.CreateSlider and Settings.CreateSliderOptions then
 			local delay = Settings.RegisterAddOnSetting(category, "OneCast_restoreDelay", "restoreDelay",
@@ -455,6 +549,10 @@ local function SetupMinimapButton()
 		GameTooltip:AddDoubleLine("OneCast", "v" .. ns.VERSION, nil, nil, nil, 0.6, 0.6, 0.6)
 		GameTooltip:AddLine("Cast / reel: " .. BoundKeysText(), 1, 1, 1)
 		GameTooltip:AddLine(ns.Stats.Summary(), 1, 1, 1)
+		local lure = ns.Lure.StatusLine()
+		if lure then
+			GameTooltip:AddLine(lure, 1, 1, 1)
+		end
 		local contest = ns.Extravaganza and ns.Extravaganza.StatusLine(GetRealZoneText())
 		if contest then
 			GameTooltip:AddLine("Fishing Extravaganza: " .. contest, 1, 1, 1)
@@ -506,6 +604,12 @@ events:SetScript("OnEvent", function(_, event, ...)
 			db = OneCastDB
 			db.wanted = db.wanted or {}
 			ns.db = db
+			OneCastCharDB = OneCastCharDB or {}
+			for k, v in pairs(charDefaults) do
+				if OneCastCharDB[k] == nil then
+					OneCastCharDB[k] = v
+				end
+			end
 			SetupSettings()
 			SetupMinimapButton()
 		end
@@ -526,6 +630,8 @@ events:SetScript("OnEvent", function(_, event, ...)
 		if IsFishingSpell(spellID) then
 			fishing = true
 			StartReelMode()
+			CheckBagSpace()
+			ns.Pools.OnCast()
 			ns.Stats.OnCast()
 			ns.Gear.OnCast()
 		end
@@ -579,6 +685,18 @@ SlashCmdList.ONECAST = function(msg)
 	elseif cmd == "new" or cmd == "whatsnew" then
 		ns.WhatsNew.Toggle()
 		return
+	elseif cmd == "tackle" then
+		ns.TackleBox.ToggleWindow()
+		return
+	elseif cmd == "tackle reset" then
+		ns.TackleBox.ResetPosition()
+		Print("tackle box button back to its first place.")
+		return
+	elseif cmd == "forgetpools" then
+		ns.Pools.Forget()
+		ns.Book.RefreshIfShown()
+		Print("remembered pools cleared.")
+		return
 	elseif cmd:match("^scale") then
 		local percent = tonumber(cmd:match("^scale%s+(%d+)"))
 		if percent then
@@ -592,8 +710,9 @@ SlashCmdList.ONECAST = function(msg)
 	for _, opt in ipairs(OPTIONS) do
 		if opt.cmd == cmd then
 			-- Through the setting, so the panel and its callbacks stay in sync.
-			opt.setting:SetValue(not db[opt.key])
-			Print(opt.label .. ": " .. (db[opt.key] and "on" or "off"))
+			local store = opt.char and OneCastCharDB or db
+			opt.setting:SetValue(not store[opt.key])
+			Print(opt.label .. ": " .. (store[opt.key] and "on" or "off"))
 			return
 		end
 	end
@@ -601,12 +720,14 @@ SlashCmdList.ONECAST = function(msg)
 	Print("/onecast - open options")
 	Print("/onecast new - what's new in each version")
 	Print("/onecast book - fishing collection")
+	Print("/onecast tackle - tackle box (/onecast tackle reset moves its button back)")
 	Print("/onecast stats - stats window (or /onecast session|zone|lifetime|log for a tab)")
 	Print("/onecast reset - start a new session")
 	Print("/onecast gear - put your weapons back on")
 	Print("/onecast scan - price your catch with Auctionator (auction house open)")
 	Print("/onecast scale 50-200 - stats window size in percent")
 	for _, opt in ipairs(OPTIONS) do
-		Print("/onecast " .. opt.cmd .. " - " .. opt.label .. " (" .. (db[opt.key] and "on" or "off") .. ")")
+		local store = opt.char and OneCastCharDB or db
+		Print("/onecast " .. opt.cmd .. " - " .. opt.label .. " (" .. (store[opt.key] and "on" or "off") .. ")")
 	end
 end

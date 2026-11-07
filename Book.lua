@@ -340,9 +340,39 @@ local function DrawOverlays(box, mapID, scale, offX, offY)
 	end
 end
 
+-- Pools you've found (Pools.lua), as dots on the map, each with a dark edge to stand out.
+local POOL_DOT = 7
+
+local function PoolDot(box, n, size, r, g, b, sublevel)
+	local tex = box.poolDots[n]
+	if not tex then
+		tex = box:CreateTexture(nil, "OVERLAY", nil, sublevel)
+		box.poolDots[n] = tex
+	end
+	tex:SetColorTexture(r, g, b, 1)
+	tex:SetSize(size, size)
+	tex:Show()
+	return tex
+end
+
+local function DrawPools(box, mapID, width, height, offX, offY)
+	local n = 0
+	for _, pool in ipairs(ns.Pools.ForMap(mapID)) do
+		local x, y = offX + pool.x * width, -(offY + pool.y * height)
+		n = n + 1
+		local edge = PoolDot(box, n, POOL_DOT + 2, 0, 0, 0, 1)
+		edge:ClearAllPoints()
+		edge:SetPoint("CENTER", box, "TOPLEFT", x, y)
+		n = n + 1
+		local dot = PoolDot(box, n, POOL_DOT, 0.25, 0.7, 1, 2)
+		dot:ClearAllPoints()
+		dot:SetPoint("CENTER", box, "TOPLEFT", x, y)
+	end
+end
+
 -- Draw a zone's map art, scaled to fit the box. Returns the map ID, or nil if none.
 local function DrawMap(box, zone)
-	for _, list in ipairs({ box.tiles, box.overlays }) do
+	for _, list in ipairs({ box.tiles, box.overlays, box.poolDots }) do
 		for _, tex in ipairs(list) do
 			tex:Hide()
 		end
@@ -375,6 +405,7 @@ local function DrawMap(box, zone)
 		tile:Show()
 	end
 	DrawOverlays(box, mapID, scale, offX, offY)
+	DrawPools(box, mapID, layer.layerWidth * scale, layer.layerHeight * scale, offX, offY)
 	return mapID
 end
 
@@ -750,7 +781,9 @@ local function RenderRight(fish, info)
 	map:SetPoint("TOP", page, "TOP", 0, -y)
 	map:Show()
 	frame.mapID = DrawMap(map, state.zone)
-	frame.mapCaption:SetText(state.zone or "")
+	local pools = frame.mapID and #ns.Pools.ForMap(frame.mapID) or 0
+	frame.mapCaption:SetText((state.zone or "") .. (pools > 0
+		and string.format("  ·  %d pool%s you've found", pools, pools == 1 and "" or "s") or ""))
 	frame.openMap:SetEnabled(frame.mapID ~= nil)
 	y = y + MAP_H + 34
 
@@ -904,6 +937,8 @@ local function ZoneStatusText(status)
 		return BAD .. status.short .. " short|r"
 	elseif status.kind == "getaways" then
 		return BAD .. "fish get away|r"
+	elseif status.kind == "outgrown" then
+		return SOFT .. "got away at " .. status.escapeSkill .. "|r"
 	elseif status.kind == "clear" then
 		return GOOD .. "no getaways|r"
 	elseif status.kind == "note" then
@@ -1130,7 +1165,7 @@ local function CreateWindow()
 	f.map:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Buttons\\WHITE8x8", edgeSize = 1 })
 	f.map:SetBackdropColor(0.10, 0.08, 0.05, 0.25)
 	f.map:SetBackdropBorderColor(INK_SOFT[1], INK_SOFT[2], INK_SOFT[3], 0.8)
-	f.map.tiles, f.map.overlays = {}, {}
+	f.map.tiles, f.map.overlays, f.map.poolDots = {}, {}, {}
 	f.map.empty = f.map:CreateFontString(nil, "OVERLAY")
 	SizedFont(f.map.empty, QuestFont, 13)
 	f.map.empty:SetTextColor(INK_SOFT[1], INK_SOFT[2], INK_SOFT[3])

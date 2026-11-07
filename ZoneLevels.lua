@@ -2,8 +2,9 @@
 -- (zone fishing level + 95). Lure and pole bonuses count towards it. Zone skill is set
 -- by the server, not the game data, and no source has published Forever's own numbers as
 -- of launch (4 November 2026), so these stay Classic's until someone measures them. The
--- stats window also counts real getaways per zone: they judge zones missing from this table
--- and overrule ZONE_FISHING_NOTE, but a zone listed here is judged by its level alone.
+-- stats window also counts real getaways per zone, with the skill they happened at: they judge
+-- zones missing from this table, overrule ZONE_FISHING_NOTE, and overrule this table too when
+-- a fish gets away at or above your current skill.
 -- Keyed by English zone name (GetRealZoneText); other client languages show "unknown".
 
 local _, ns = ...

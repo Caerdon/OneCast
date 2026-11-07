@@ -20,6 +20,9 @@ Each cast and reel is still one hardware press; nothing is automated.
 |---|---|
 | `OneCast.lua` | Cast button, reel key override, CVar leases, options panel, minimap button, slash commands |
 | `Gear.lua` | Equipping the pole from the bags and putting weapons back |
+| `Lure.lua` | Lure data, the character's choice, whether one is on the pole, and the presses that apply it |
+| `TackleBox.lua` | The tackle box button (secure, hidden in combat) and its settings window, built from the stats window's parts (`ns.UI`) |
+| `Pools.lua` | Remembering fishing pools from their tooltips, for the book's maps |
 | `Stats.lua` | Session, zone, lifetime and log stats, and the stats window |
 | `Prices.lua` | Handing the catch to Auctionator's search |
 | `ZoneLevels.lua` | Zone fishing levels (Classic Era data) and notes on Forever zones |
@@ -35,6 +38,9 @@ Each cast and reel is still one hardware press; nothing is automated.
 ### Details worth knowing
 
 - **Auto-equip pole:** with no pole equipped, the cast key equips the best pole in the bags (the one used last, else highest item level) from the button's `PreClick`, and that press doesn't cast. Weapons are saved per character and put back after the idle delay (60 s by default; 0 = never), when combat starts (anything blocked in combat finishes when it ends), or on demand. Equipping a different weapon by hand forgets the saved ones. Double right-click needs the pole equipped, so a stray double-click never swaps gear.
+- **Lures:** PreClick runs on both key-down and key-up and which one fires depends on `ActionButtonUseKeyDown` and the input, so a press only arms the macro (`/use item:<id>`, `/use 16`) and the lure's own spell events (`UNIT_SPELLCAST_*`, IDs in `Lure.lua`) track what happened. Lures have a 5-second cast, and the cast key waits it out rather than interrupting. Two failed tries in a row make the cast key just cast for a minute, so a lure problem can never stop fishing. Until `GetWeaponEnchantInfo` has reported a lure, `Lure.Left` goes by the clock, so a lure is never spent twice. A press never equips and applies together, even if the pole lands before the key comes up: `/use 16` would target whatever was in the hand. Only Ctrl-click on the tackle box replaces a lure, never a key binding, which could be bound to Ctrl-something. The lure last applied is saved per character, and a lure on the pole with no record shows as unnamed rather than as the chosen one. Only poles in the main hand are supported.
+- **Pools:** the game gives no position for a pool and a tooltip shows from far beyond casting range, so `Pools.lua` stores the player's position when the line goes out after hovering over one, or right away if the line is already out. It recognises English names only.
+- **Getaways:** each zone keeps `escapeSkill`, the highest skill (lure included) a fish got away at, and `cleanCatches`, its catches since the last getaway. 10 clean catches clear the zone's getaways from `Stats.ZoneStatus`.
 - **Sessions:** a cast after 30 minutes idle starts a new session. Fish per hour counts only time actually fishing (gaps over 2 minutes between casts don't count).
 - **Opens on cast:** closing the window with its X or the minimap button keeps it closed until a 2-minute break from fishing; Escape, Alt+Z and cutscenes don't count.
 - **Spots, hours and skill-ups:** each zone's totals keep `spots` by sub-zone (`GetSubZoneText` at the cast). Lifetime items keep `hours`, catches by realm hour (`GetGameTime`), which the collection copies for the book's time of day. `OneCastCharDB.skill` counts catches since the last skill-up; the next-point estimate uses Classic's rule of thumb (1 catch per point to 75, then one more per 25 points).

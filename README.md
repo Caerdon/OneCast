@@ -24,8 +24,15 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - Click any fish for **its own page**: the game's description, your catches on every character, when and where you first caught it, whether you caught it **by day or at night**, every zone it's caught in with a **map**, and the **recipes** it's used in, including WoW Forever's new ones.
 - **Filter by zone and search by name.** Pick your zone and show what's missing to see what's left to catch here.
 - **Zones tab:** every zone's fishing level at a glance, checked against your skill, with how many of its fish you've caught. Click a zone to see its fish.
+- **Remembered pools:** hover over a fishing pool with your pole on and cast, and the spot you fished it from is marked on the book's zone maps.
 - Shared across all your characters, including everything caught before you installed it.
 - Catch a fish none of your characters has and chat tells you it's **new for your collection**.
+
+### 🧰 The tackle box (new in 0.5.0)
+- A small button while your pole is on, with your lure, how many you have and the time left. It pulses when the lure is about to run out.
+- **You choose the lure**, for each character, or let it pick the best you can use. It's never swapped for another, so your rare lures stay safe.
+- Left-click applies it, or turn on **Apply with the cast key** so the key does it first and casts on the next press. Every lure is still your own press.
+- Compare your **fish per hour with and without a lure**, and get a nudge at a vendor selling your lure when you're running low.
 
 ### 🗡️ Pole on, weapons back
 - With no pole equipped, the cast key equips the best one in your bags.
@@ -44,6 +51,7 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - See at a glance whether you meet the zone's fishing level, so no fish get away.
 - Zones without known levels are judged from your own catches and getaways.
 - **Skill-ups:** skill gained this session, about how many catches until the next point, and how many until the zone's level.
+- Short of a zone's level? The verdict names a lure in your bags that would cover it.
 
 ### 💰 What your catch is worth
 - Vendor value of everything caught, per tab.
