@@ -1,12 +1,12 @@
 # OneCast – One-Button Fishing for WoW Forever
 
-**One key to cast, the same key to reel.** OneCast turns fishing into a single button, then tells you how it's going: what you've caught, how fast, what it's worth, and whether this zone is right for your skill. And now it keeps a **collection book** of every fish in WoW Forever, so you know what's left to catch and where to find it.
+**One key to cast, the same key to reel.** OneCast turns fishing into a single button and adds everything around it: lures on your terms, a collection book of every fish in WoW Forever, fishing levels for every zone, and stats that show what your time on the water is worth.
 
-Every cast and every reel is still your own key press. OneCast never fishes for you.
+Every cast, reel and lure is still your own press. OneCast never fishes for you.
 
 ## Getting started
 1. Install, then bind a key under **Options → Keybindings → AddOns → OneCast** (or in OneCast's own options).
-2. Stand by the water and press it. With no pole equipped, the first press puts one on for you.
+2. Stand by the water and press it to cast. With no pole equipped, the first press puts one on for you and the next one casts.
 3. Press it again when the bobber splashes to reel in.
 
 Prefer the mouse? **Double right-click** the water with a pole equipped to cast, and right-click the bobber to reel.
@@ -15,43 +15,46 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 
 ### 🎣 One-button fishing
 - One key casts, then the same key reels in your bobber using the game's soft-interact.
-- Optional double right-click to cast.
+- With no pole on, the key equips the best one in your bags.
+- Your weapons are remembered and put back after a break (you choose how long), when combat starts, or with one click.
 - Your keys go straight back to normal when the line comes in or combat starts.
+- Warns you when you cast with full bags, and offers to turn on auto loot if it's off.
 
-### 📖 The fishing collection (new in 0.2.0)
-- A book of **every fish in WoW Forever**: 88 catches across fish, special catches, trophy fish and bloated fish, checked against the launch build.
-- See which you've caught, on which characters, and how many. The rest wait greyed out, with your progress at the top.
-- Click any fish for **its own page**: the game's description, your catches on every character, when and where you first caught it, whether you caught it **by day or at night**, every zone it's caught in with a **map**, and the **recipes** it's used in, including WoW Forever's new ones.
+### 🧰 The tackle box
+![The tackle box window: choose a lure, apply it with the cast key, and compare fish per hour](https://raw.githubusercontent.com/rynmon/OneCast/main/assets/screenshots/tackle-box.png)
+
+- A small button appears while your pole is on, showing your lure, how many you have and the time left. It pulses when the lure is about to run out.
+- **You choose the lure** for each character, so a rare one is only spent if you pick it. Your choice is never swapped for another, or pick **Best I can use** if you don't mind spending them.
+- Left-click to apply, use the Apply lure key, or turn on **Apply with the cast key** so your key applies the lure, then casts on the next press.
+- Compare your **fish per hour with and without a lure**.
+- Get a nudge at a vendor selling your lure when you have fewer than 5.
+
+### 📖 The fishing collection
+![The collection book: every fish, with the ones you've caught in colour](https://raw.githubusercontent.com/rynmon/OneCast/main/assets/screenshots/collection.png)
+
+![A fish's page: your catches, where to catch it with a map, and its recipes](https://raw.githubusercontent.com/rynmon/OneCast/main/assets/screenshots/fish-page.png)
+
+- A book of **every fish in WoW Forever**: 88 catches across fish, special catches, trophy fish and bloated fish, shared across all your characters, including what you caught before installing.
+- Click any fish for **its own page**: the game's description, your catches on every character, when and where you first caught it, whether it was **by day or at night**, every zone it's caught in with a **map**, and the **recipes** it's used in.
 - **Filter by zone and search by name.** Pick your zone and show what's missing to see what's left to catch here.
-- **Zones tab:** every zone's fishing level at a glance, checked against your skill, with how many of its fish you've caught. Click a zone to see its fish.
-- **Remembered pools:** hover over a fishing pool with your pole on and cast, and the spot you fished it from is marked on the book's zone maps.
-- Shared across all your characters, including everything caught before you installed it.
 - Catch a fish none of your characters has and chat tells you it's **new for your collection**.
+- **Remembered pools:** hover over a fishing pool with your pole on and cast, and the spot you fished it from is marked on the book's zone maps.
 
-### 🧰 The tackle box (new in 0.5.0)
-- A small button while your pole is on, with your lure, how many you have and the time left. It pulses when the lure is about to run out.
-- **You choose the lure**, for each character, or let it pick the best you can use. It's never swapped for another, so your rare lures stay safe.
-- Left-click applies it, or turn on **Apply with the cast key** so the key does it first and casts on the next press. Every lure is still your own press.
-- Compare your **fish per hour with and without a lure**, and get a nudge at a vendor selling your lure when you're running low.
-
-### 🗡️ Pole on, weapons back
-- With no pole equipped, the cast key equips the best one in your bags.
-- Your main- and off-hand weapons are remembered and put back after a break (you choose how long), when combat starts, or with one click.
+### 🗺️ Where to fish next
+- **Zones tab:** every zone's fishing level at a glance, checked against your skill, with how many of its fish you've caught. Click a zone to see its fish.
+- **Is this zone right for you?** A skill bar shows your Fishing skill, lure bonus included, and whether fish will get away here.
+- Short of a zone's level? OneCast names a lure in your bags that would cover it.
+- Zones without a known level are judged from your own catches and getaways. A getaway can also flag a listed level as too low, and 10 catches in a row clear it again.
 
 ### 📊 Session stats
-- A stats window that opens as you cast: catches out of casts, catch rate, fishing time and **fish per hour**.
-- Tabs for the **session**, the **zone** you're in (all time), your **lifetime** totals, and a **log** of recent catches.
-- Every fish you've caught, with icon, quality colour and count.
-- **Best spots:** every lake, coast and river you fish in a zone, compared by fish per hour.
-- A **session summary** in chat when you take a break: catches, fish per hour, value, skill gained and new fish.
-- Click any item for its **WoW Forever Wowhead** page, ready to copy. Shift-click to link it in chat.
+![The stats window: Fishing skill, the zone's verdict, session numbers and catches](https://raw.githubusercontent.com/rynmon/OneCast/main/assets/screenshots/stats.png)
 
-### 🗺️ Is this zone right for you?
-- An animated skill bar shows your Fishing skill, lure bonus included.
-- See at a glance whether you meet the zone's fishing level, so no fish get away.
-- Zones without known levels are judged from your own catches and getaways.
-- **Skill-ups:** skill gained this session, about how many catches until the next point, and how many until the zone's level.
-- Short of a zone's level? The verdict names a lure in your bags that would cover it.
+- A stats window that opens as you cast: catches out of casts, catch rate, fishing time and **fish per hour**.
+- Tabs for the **session**, the **zone** you're in, your **lifetime** totals, and a **log** of recent catches.
+- **Best spots:** every lake, coast and river you fish in a zone, compared by fish per hour.
+- **Skill-ups:** skill gained this session, and about how many catches until the next point and the zone's level.
+- A **session summary** in chat when you take a break.
+- Click any item for its **WoW Forever Wowhead** page, ready to copy. Shift-click to link it in chat.
 
 ### 💰 What your catch is worth
 - Vendor value of everything caught, per tab.
@@ -59,48 +62,55 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 
 ### ✨ Rare catch alerts
 - A raid-warning flash and sound for anything green or better (you choose the quality).
-- Right-click any fish to mark it as **wanted** and get alerted when it bites.
+- Right-click any fish in the stats window to mark it as **wanted** and get alerted when you catch it.
 
 ### 🏆 Fishing Extravaganza
 - A countdown to Stranglethorn's Sunday contest, a Tastyfish counter while it runs, and an alert the moment you hold 40.
-- Chat reminders shortly before it starts and when it does. The schedule is Classic's until Forever confirms its own.
+- Chat reminders shortly before it starts and when it does.
 
 ### 🔊 Hear the splash
 - Sound effects turn up while your line is out.
-- Optionally, music, ambience and dialog go quiet (or off) while your pole is equipped, so the splash stands out. Your own levels come back when your weapons go back on.
+- Optionally, music, ambience and dialog go quiet or off while your pole is equipped. Your own levels come back when your weapons go back on.
 
 ### ⚙️ Fits right in
 - Built from WoW Forever's own UI style.
-- Offers to turn on auto loot if it's off, so catches go straight to your bags.
-- Minimap button, addon compartment entry and a full options page.
+- Minimap button, addon compartment entry and an options page grouped into sections.
 - Drag and scale the stats window, and close it whenever you like.
 - A **What's new** page shows every update.
 
 ## Opening things
 - **Stats window:** opens when you cast, or right-click the minimap button.
+- **Tackle box:** right-click its button, or `/onecast tackle`. Shift-drag the button to move it.
 - **Fishing collection:** the book button in the stats window, Shift-click the minimap button, or `/onecast book`.
 - **Options:** left-click the minimap button, or `/onecast`.
+- **Key bindings:** cast and reel, Apply lure, Tackle box, Fishing collection and Re-equip weapons, under Options → Keybindings → AddOns.
 
 ## Commands
 | Command | What it does |
 |---|---|
 | `/onecast` | Open options |
 | `/onecast stats` | Show or hide the stats window |
+| `/onecast tackle` | Tackle box settings |
+| `/onecast tackle reset` | Move the tackle box button back to its first place |
 | `/onecast book` | Fishing collection |
 | `/onecast reset` | Start a new session |
 | `/onecast gear` | Put your weapons back on |
 | `/onecast scan` | Price your catch with Auctionator (auction house open) |
+| `/onecast forgetpools` | Clear remembered pools |
 | `/onecast new` | What's new |
 | `/onecast help` | All commands and options |
 
 ## Good to know
 - **Made for WoW Forever.** Classic Era and Retail aren't supported.
 - The collection's fish and recipes are checked against WoW Forever's own game data. Where each fish is caught isn't published for Forever yet, so zones come from Classic data and player reports, marked as such. Fish with no known waters fill in from your own catches.
-- Zone fishing levels come from Classic data. Forever may differ, and its new zones have no data yet, so the Zone tab counts real getaways to keep you honest.
+- **Zone fishing levels come from Classic data**, and Forever may differ. Its new zones have no data yet, so OneCast also counts real getaways to keep you honest.
+- Lures work with a pole in your main hand, and take 5 seconds to apply. WoW only lets addons use items on your own press, so a lure can't go on by itself the moment you equip the pole.
+- Zone levels and pool marks need an English client for now.
+- Pools move, so a mark shows where one has been, not where one is now.
 - Auction values need Auctionator or TradeSkillMaster installed.
 
 ## Feedback
-Feature requests and bug reports are very welcome. Leave a comment or open an issue here on CurseForge.
+Feature requests and bug reports are very welcome. Leave a comment or open an issue here on CurseForge. The Zones tab and the tackle box both started as comments there, so thank you to everyone who suggests something!
 
 ---
 
