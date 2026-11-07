@@ -41,6 +41,8 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - **Remembered pools:** hover over a fishing pool with your pole on and cast, and the spot you fished it from is marked on the book's zone maps.
 
 ### 🗺️ Where to fish next
+![The Zones tab: every zone by the Fishing skill it needs, checked against yours](https://raw.githubusercontent.com/rynmon/OneCast/main/assets/screenshots/zones.png)
+
 - **Zones tab:** every zone's fishing level at a glance, checked against your skill, with how many of its fish you've caught. Click a zone to see its fish.
 - **Is this zone right for you?** A skill bar shows your Fishing skill, lure bonus included, and whether fish will get away here.
 - Short of a zone's level? OneCast names a lure in your bags that would cover it.
