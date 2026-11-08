@@ -6,6 +6,15 @@ local _, ns = ...
 
 ns.CHANGELOG = {
 	{
+		version = "0.5.2",
+		date = "8 November 2026",
+		sections = {
+			{ "Fixed", {
+				{ "Searching the options.", "OneCast's buttons and key entry no longer appear in the game's settings search, which could raise an error. They're still on OneCast's own options page, and the key is still on the Keybindings page. Thanks to onkl for the report and the fix!" },
+			} },
+		},
+	},
+	{
 		version = "0.5.1",
 		date = "8 November 2026",
 		sections = {

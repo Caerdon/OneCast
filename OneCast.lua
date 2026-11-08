@@ -382,13 +382,16 @@ local function SetupSettings()
 	if CreateSettingsListSectionHeaderInitializer then
 		layout:AddInitializer(CreateSettingsListSectionHeaderInitializer("OneCast v" .. ns.VERSION))
 	end
+	-- Kept out of the settings search (the last argument here, SetSearchIgnoredInLayout on the
+	-- key below): Blizzard does the same for its own buttons that open something, and addon
+	-- entries in the search results were reported to raise ADDON_ACTION_FORBIDDEN.
 	if CreateSettingsButtonInitializer then
 		layout:AddInitializer(CreateSettingsButtonInitializer("Fishing collection", "Open collection", function()
 			ns.Book.Show()
-		end, "Every fish, which you've caught, and where to find the rest.", true))
+		end, "Every fish, which you've caught, and where to find the rest.", false))
 		layout:AddInitializer(CreateSettingsButtonInitializer("What's new", "What's new", function()
 			ns.WhatsNew.Show()
-		end, "See what changed in each version of OneCast.", true))
+		end, "See what changed in each version of OneCast.", false))
 	end
 
 	-- The cast/reel key, editable right here (same binding as Keybindings > AddOns).
@@ -398,7 +401,11 @@ local function SetupSettings()
 				if CreateSettingsListSectionHeaderInitializer then
 					layout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Key"))
 				end
-				layout:AddInitializer(CreateKeybindingEntryInitializer(i, true))
+				local keyEntry = CreateKeybindingEntryInitializer(i, true)
+				if keyEntry.SetSearchIgnoredInLayout then
+					keyEntry:SetSearchIgnoredInLayout(layout)
+				end
+				layout:AddInitializer(keyEntry)
 				break
 			end
 		end
