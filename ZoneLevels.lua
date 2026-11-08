@@ -5,7 +5,7 @@
 -- stats window also counts real getaways per zone, with the skill they happened at: they judge
 -- zones missing from this table, overrule ZONE_FISHING_NOTE, and overrule this table too when
 -- a fish gets away at or above your current skill.
--- Keyed by English zone name (GetRealZoneText); other client languages show "unknown".
+-- Keyed by English zone name; ZoneNames.lua swaps them for the client's own at load.
 
 local _, ns = ...
 

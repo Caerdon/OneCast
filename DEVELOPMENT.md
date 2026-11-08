@@ -7,7 +7,7 @@ The player-facing description is in [README.md](README.md), the same text as the
 Forever runs the modern (Midnight-era) addon API but `loadstring_untainted` is missing, so SecureHandler snippets don't work. OneCast avoids them:
 
 1. `OneCastButton` is a `SecureActionButtonTemplate` button with `type=spell`, `spell=<Fishing>` (name resolved from spell ID 7620, falling back to 131474).
-2. On `UNIT_SPELLCAST_CHANNEL_START` for Fishing, the key bound to the button is overridden to `INTERACTTARGET`, and `SoftTargetInteract=3`, `SoftTargetInteractArc=2` and `SoftTargetInteractRange=30` are set so the bobber is the soft-interact target. Optionally, SFX volume is raised to full for the cast.
+2. On `UNIT_SPELLCAST_CHANNEL_START` for Fishing, the key bound to the button is overridden to `INTERACTTARGET`, and `SoftTargetInteract=3`, `SoftTargetInteractArc=2` and `SoftTargetInteractRange=30` are set so the bobber is the soft-interact target. With "Mark your bobber" on (off by default), `SoftTargetIconGameObject` and `SoftTargetIconInteract` are set too, for the game's gear icon over the bobber. Optionally, SFX volume is raised to full for the cast.
 3. On `UNIT_SPELLCAST_CHANNEL_STOP` the override is cleared, and each CVar is restored only if it still holds OneCast's value.
 4. `PLAYER_REGEN_DISABLED` drops every override before combat lockdown; `PLAYER_LOGOUT` restores CVars so they're never saved.
 5. With "Quiet other sounds" on, `Sound_MusicVolume`, `Sound_AmbienceVolume` and `Sound_DialogVolume` are turned down to `quietLevel` percent of their own value while a pole is equipped (checked on `PLAYER_EQUIPMENT_CHANGED`). They're a separate lease group from the per-cast CVars, so the line coming in or combat starting doesn't give them back; the pole coming off does.
@@ -26,6 +26,7 @@ Each cast and reel is still one hardware press; nothing is automated.
 | `Stats.lua` | Session, zone, lifetime and log stats, and the stats window |
 | `Prices.lua` | Handing the catch to Auctionator's search |
 | `ZoneLevels.lua` | Zone fishing levels (Classic Era data) and notes on Forever zones |
+| `ZoneNames.lua` | Area IDs for every zone name, translating the zone tables on non-English clients |
 | `FishData.lua` | Every fish in the collection: category, zones (most common first) and recipes |
 | `Collection.lua` | Account-wide record of which characters caught each fish, synced from each character's stats |
 | `Extravaganza.lua` | The Stranglethorn Fishing Extravaganza: schedule (Classic's), Tastyfish counter and reminders |
@@ -45,7 +46,7 @@ Each cast and reel is still one hardware press; nothing is automated.
 - **Opens on cast:** closing the window with its X or the minimap button keeps it closed until a 2-minute break from fishing; Escape, Alt+Z and cutscenes don't count.
 - **Spots, hours and skill-ups:** each zone's totals keep `spots` by sub-zone (`GetSubZoneText` at the cast). Lifetime items keep `hours`, catches by realm hour (`GetGameTime`), which the collection copies for the book's time of day. `OneCastCharDB.skill` counts catches since the last skill-up; the next-point estimate uses Classic's rule of thumb (1 catch per point to 75, then one more per 25 points).
 - **Session summary** prints after `ACTIVE_GAP` (2 minutes) without a cast, once per stretch of new catches.
-- **Zone levels** are keyed by English zone name (`GetRealZoneText`). The Zone tab counts real getaways (`ERR_FISH_ESCAPED`), and zones without data are judged from them. `Stats.ZoneStatus` holds that judgement, and both the stats window and the book's Zones view read it.
+- **Zone levels** are keyed by English zone name, and `ZoneNames.lua` swaps those for the client's own at load, by area ID (`C_Map.GetAreaInfo`), so they match `GetRealZoneText` in any language. A new zone needs an area ID there. The Zone tab counts real getaways (`ERR_FISH_ESCAPED`), and zones without data are judged from them. `Stats.ZoneStatus` holds that judgement, and both the stats window and the book's Zones view read it.
 - **Auction prices** come from Auctionator (`GetAuctionPriceByItemID`) or TSM (`dbmarket`). The scan hands every caught item to Auctionator's `MultiSearchExact`.
 - **Wanted items** are account-wide (`OneCastDB.wanted`); stats are per character (`OneCastCharDB`).
 - **Collection:** `OneCastDB.collection.items[itemID].byChar[character]` holds each character's count and zones, copied from that character's `OneCastCharDB` at login and after each catch, so earlier catches count and nothing is counted twice. Any "Meat" trade good you fish up that isn't in `FishData.lua` joins the book as a discovered fish.

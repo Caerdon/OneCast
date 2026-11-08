@@ -59,24 +59,7 @@ local frame
 -- fishID and zone are the open fish page and its selected zone.
 local state = { cat = "all", show = "all", spread = 1 }
 
-local function TryCreate(frameType, name, parent, template)
-	local ok, f = pcall(CreateFrame, frameType, name, parent, template)
-	if ok then
-		return f
-	end
-end
-
-local function HasAtlas(atlas)
-	return C_Texture and C_Texture.GetAtlasInfo and C_Texture.GetAtlasInfo(atlas) ~= nil
-end
-
-local function SizedFont(fs, fontObject, size)
-	fs:SetFontObject(fontObject)
-	local path, _, flags = fs:GetFont()
-	if path then
-		fs:SetFont(path, size, flags)
-	end
-end
+local TryCreate, HasAtlas, SizedFont = ns.UI.TryCreate, ns.UI.HasAtlas, ns.UI.SizedFont
 
 -- Fish data ------------------------------------------------------------------------------
 
@@ -1086,6 +1069,7 @@ local function CreateWindow()
 	f:SetScript("OnDragStart", f.StartMoving)
 	f:SetScript("OnDragStop", f.StopMovingOrSizing)
 	tinsert(UISpecialFrames, f:GetName())
+	ns.UI.KeepOpenThroughOptions(f:GetName())
 
 	local inset = f.Inset or CreateFrame("Frame", nil, f)
 	inset:ClearAllPoints()
@@ -1295,7 +1279,9 @@ function Book.Refresh()
 	frame.progressText:SetText(string.format("Collected |cffffffff%d|r of %d", caught, total))
 	frame.progress:SetValue(total > 0 and caught / total or 0)
 
-	state.list = state.list or Filtered()
+	if state.fishID then
+		state.list = state.list or Filtered() -- the fish page's Previous and Next walk it
+	end
 	local showFish = state.fishID ~= nil and RenderFish()
 	local showZones = not showFish and state.cat == "zones"
 	if showZones then

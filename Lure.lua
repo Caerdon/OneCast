@@ -141,7 +141,7 @@ end
 
 function Lure.ReasonText(reason, lure)
 	if reason == "none" then
-		return "No lure chosen."
+		return "No lure chosen in the tackle box."
 	elseif reason == "best" then
 		return "No lure you can use in your bags."
 	elseif reason == "out" then
@@ -272,7 +272,7 @@ function Lure.CastPress(down)
 	end
 	local lure, reason, about = Lure.Selected()
 	if not lure then
-		if reason ~= "none" and not noted[reason] then
+		if not noted[reason] then
 			noted[reason] = true
 			notedCounts = LureCounts()
 			ns.Print(Lure.ReasonText(reason, about) .. " Casting without a lure.")
@@ -432,6 +432,13 @@ end
 
 -- Events -----------------------------------------------------------------------------------
 
+local function LureForSpell(spellID)
+	if spellID == nil or (issecretvalue and issecretvalue(spellID)) then
+		return nil
+	end
+	return bySpell[spellID]
+end
+
 local events = CreateFrame("Frame")
 for _, event in ipairs({ "UNIT_SPELLCAST_SENT", "UNIT_SPELLCAST_START", "UNIT_SPELLCAST_SUCCEEDED",
 	"UNIT_SPELLCAST_FAILED", "UNIT_SPELLCAST_INTERRUPTED", "UNIT_INVENTORY_CHANGED" }) do
@@ -443,7 +450,7 @@ events:RegisterEvent("MERCHANT_SHOW")
 events:SetScript("OnEvent", function(_, event, ...)
 	if event == "UNIT_SPELLCAST_SENT" or event == "UNIT_SPELLCAST_START" then
 		local spellID = select(event == "UNIT_SPELLCAST_SENT" and 4 or 3, ...)
-		local lure = bySpell[spellID]
+		local lure = LureForSpell(spellID)
 		if lure then
 			if not casting then
 				ns.Print(string.format("applying %s (+%d). Press again to cast once it's on.", Lure.Name(lure), lure.bonus))
@@ -458,7 +465,7 @@ events:SetScript("OnEvent", function(_, event, ...)
 		end
 	elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
 		local _, _, spellID = ...
-		local lure = bySpell[spellID]
+		local lure = LureForSpell(spellID)
 		if lure then
 			local now = GetTime()
 			casting, armed = nil, nil
@@ -472,7 +479,7 @@ events:SetScript("OnEvent", function(_, event, ...)
 		end
 	elseif event == "UNIT_SPELLCAST_FAILED" or event == "UNIT_SPELLCAST_INTERRUPTED" then
 		local _, _, spellID = ...
-		local lure = bySpell[spellID]
+		local lure = LureForSpell(spellID)
 		if lure and casting then
 			casting = nil
 			RestartIdleTimer()

@@ -42,6 +42,7 @@ local defaults = {
 	tackleBox = true,
 	lureVendorHint = true,
 	rememberPools = true,
+	bobberMarker = false,
 }
 -- Per character: skill and bags differ, and lures get used up.
 local charDefaults = {
@@ -55,6 +56,8 @@ local OPTIONS = {
 		tooltip = "With a fishing pole equipped, double right-click the world to cast. Right-click the bobber to reel in." },
 	{ cmd = "softinteract", key = "softInteract", label = "Soft-interact while fishing",
 		tooltip = "While the line is out, make the bobber the soft-interact target so the cast key reels it in." },
+	{ cmd = "bobbermarker", key = "bobberMarker", label = "Mark your bobber",
+		tooltip = "While the line is out, show the game's gear icon over your bobber, so you can tell it from other people's. It can't show when a fish bites: the game doesn't tell addons that." },
 	{ cmd = "bagwarning", key = "bagWarning", label = "Warn when your bags are full",
 		tooltip = "Warn once when you cast with no free bag space, because a catch may not fit." },
 	{ section = "Sound", cmd = "sound", key = "soundBoost", label = "Louder splash while fishing",
@@ -95,6 +98,11 @@ local SOFT_INTERACT_CVARS = {
 	SoftTargetInteract = "3",      -- always soft-target interactables
 	SoftTargetInteractArc = "2",   -- 360 degrees
 	SoftTargetInteractRange = "30",
+}
+-- The game's gear icon over the soft-interact target: your bobber, and nobody else's.
+local BOBBER_MARKER_CVARS = {
+	SoftTargetIconGameObject = "1",
+	SoftTargetIconInteract = "1",
 }
 -- Sound effects raised for the cast. Music, ambience and dialog are only touched by the
 -- separate "quiet" option (QUIET_CVARS), which follows the pole rather than the cast.
@@ -151,12 +159,7 @@ local function ResolveFishingName()
 end
 
 local function IsFishingPole(slot)
-	local itemID = GetInventoryItemID("player", slot)
-	if not itemID then
-		return false
-	end
-	local _, _, _, _, _, classID, subclassID = C_Item.GetItemInfoInstant(itemID)
-	return classID == Enum.ItemClass.Weapon and subclassID == Enum.ItemWeaponSubclass.Fishingpole
+	return ns.Gear.IsPole(GetInventoryItemID("player", slot))
 end
 
 local function HasFishingPole()
@@ -235,8 +238,11 @@ local function StartReelMode()
 	if InCombatLockdown() then
 		return
 	end
-	if db.softInteract then
+	if db.softInteract or db.bobberMarker then -- the icon goes on the soft-interact target
 		LeaseCVars("cast", SOFT_INTERACT_CVARS)
+	end
+	if db.bobberMarker then
+		LeaseCVars("cast", BOBBER_MARKER_CVARS)
 	end
 	if db.soundBoost then
 		LeaseCVars("cast", SOUND_CVARS)
@@ -254,6 +260,9 @@ local function StopReelMode()
 end
 
 local equippingPress = false -- the key went down and equipped a pole, and hasn't come up yet
+local reelEndedAt = 0        -- when the line last came in
+local doubleClickArmed = false -- a double right-click's mouse-up is about to cast
+local REEL_RELEASE_WINDOW = 1 -- seconds a key-up still counts as releasing that reel-in
 
 -- The secure cast button. Attributes are set once, out of combat, at login.
 local button = CreateFrame("Button", BUTTON_NAME, UIParent, "SecureActionButtonTemplate")
@@ -261,6 +270,13 @@ button:RegisterForClicks("AnyUp", "AnyDown")
 button:SetAttribute("type", "spell")
 button:HookScript("PreClick", function(self, _, down)
 	if InCombatLockdown() then
+		return
+	end
+	-- The line can come in before the key does: the release of a reel-in press isn't a cast.
+	local reelRelease = not down and not doubleClickArmed and GetTime() - reelEndedAt < REEL_RELEASE_WINDOW
+	reelEndedAt = 0
+	if reelRelease then
+		self:SetAttribute("type", nil)
 		return
 	end
 	-- The pole can land before the key comes up: the press that equipped it stays spent.
@@ -291,6 +307,7 @@ button:HookScript("PostClick", function(self)
 		self:SetAttribute("macrotext", nil)
 		-- The double-click override is one-shot: hand right-click back to the camera.
 		ClearOverrideBindings(clickOwner)
+		doubleClickArmed = false
 	end
 end)
 
@@ -307,6 +324,7 @@ WorldFrame:HookScript("OnMouseDown", function(_, mouseButton)
 	if now - lastRightClick <= DOUBLE_CLICK_WINDOW then
 		lastRightClick = 0
 		SetOverrideBindingClick(clickOwner, true, "BUTTON2", BUTTON_NAME)
+		doubleClickArmed = true
 	else
 		lastRightClick = now
 	end
@@ -575,6 +593,13 @@ function OneCast_OnAddonCompartmentClick()
 	OpenSettings()
 end
 
+-- A secure button's attributes can't change in combat, so this waits until it's over.
+local function ApplyFishingSpell()
+	if fishingName and not InCombatLockdown() and button:GetAttribute("spell") ~= fishingName then
+		button:SetAttribute("spell", fishingName)
+	end
+end
+
 local function IsFishingSpell(spellID)
 	if not spellID or (issecretvalue and issecretvalue(spellID)) then
 		return false
@@ -587,6 +612,7 @@ events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_LOGOUT")
 events:RegisterEvent("PLAYER_REGEN_DISABLED")
+events:RegisterEvent("PLAYER_REGEN_ENABLED")
 events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 events:RegisterEvent("SPELLS_CHANGED")
 events:RegisterUnitEvent("UNIT_SPELLCAST_CHANNEL_START", "player")
@@ -615,10 +641,10 @@ events:SetScript("OnEvent", function(_, event, ...)
 		end
 	elseif event == "PLAYER_LOGIN" or event == "SPELLS_CHANGED" then
 		local name = ResolveFishingName()
-		if name and name ~= fishingName and not InCombatLockdown() then
+		if name then
 			fishingName = name
-			button:SetAttribute("spell", name)
 		end
+		ApplyFishingSpell()
 		if event == "PLAYER_LOGIN" then
 			UpdateQuiet() -- logged in with the pole on
 		end
@@ -638,6 +664,7 @@ events:SetScript("OnEvent", function(_, event, ...)
 	elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
 		if fishing then
 			fishing = false
+			reelEndedAt = GetTime()
 			StopReelMode()
 			ns.Gear.OnFishingStopped()
 		end
@@ -648,6 +675,14 @@ events:SetScript("OnEvent", function(_, event, ...)
 		ClearOverrideBindings(reelOwner)
 		ClearOverrideBindings(clickOwner)
 		ReleaseCVars("cast") -- the quiet ones follow the pole, which combat puts away
+	elseif event == "PLAYER_REGEN_ENABLED" then
+		ApplyFishingSpell()
+		-- A line still out: combat took the reel key away, and pressing it now would recast.
+		local _, _, _, _, _, _, _, spellID = UnitChannelInfo("player")
+		if IsFishingSpell(spellID) then
+			fishing = true
+			StartReelMode()
+		end
 	elseif event == "PLAYER_EQUIPMENT_CHANGED" then
 		UpdateQuiet()
 	elseif event == "PLAYER_LOGOUT" then
@@ -689,8 +724,8 @@ SlashCmdList.ONECAST = function(msg)
 		ns.TackleBox.ToggleWindow()
 		return
 	elseif cmd == "tackle reset" then
-		ns.TackleBox.ResetPosition()
-		Print("tackle box button back to its first place.")
+		Print(ns.TackleBox.ResetPosition() and "tackle box button back to its first place."
+			or "the tackle box button can't move during combat.")
 		return
 	elseif cmd == "forgetpools" then
 		ns.Pools.Forget()

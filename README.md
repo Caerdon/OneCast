@@ -15,6 +15,7 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 
 ### 🎣 One-button fishing
 - One key casts, then the same key reels in your bobber using the game's soft-interact.
+- Optionally, **mark your bobber** with the game's gear icon while the line is out, so you can tell your splash from other people's.
 - With no pole on, the key equips the best one in your bags.
 - Your weapons are remembered and put back after a break (you choose how long), when combat starts, or with one click.
 - Your keys go straight back to normal when the line comes in or combat starts.
@@ -107,7 +108,7 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - The collection's fish and recipes are checked against WoW Forever's own game data. Where each fish is caught isn't published for Forever yet, so zones come from Classic data and player reports, marked as such. Fish with no known waters fill in from your own catches.
 - **Zone fishing levels come from Classic data**, and Forever may differ. Its new zones have no data yet, so OneCast also counts real getaways to keep you honest.
 - Lures work with a pole in your main hand, and take 5 seconds to apply. WoW only lets addons use items on your own press, so a lure can't go on by itself the moment you equip the pole.
-- Zone levels and pool marks need an English client for now.
+- OneCast's own text is in English. Zone levels work in every client language, but pool marks only recognise English pool names for now.
 - Pools move, so a mark shows where one has been, not where one is now.
 - Auction values need Auctionator or TradeSkillMaster installed.
 
