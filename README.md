@@ -76,8 +76,8 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - Optionally, music, ambience and dialog go quiet or off while your pole is equipped. Your own levels come back when your weapons go back on.
 
 ### ⚙️ Fits right in
-- Built from WoW Forever's own UI style.
-- Minimap button, addon compartment entry and an options page grouped into sections.
+- Built from WoW Forever's own UI style, with eight more themes if you'd like a change, from a wood-panelled **Fisherman's Lodge** to **Class Colours**.
+- Minimap button, addon compartment entry and options split into short pages: Fishing, Lures, Sound, and Stats and alerts.
 - Drag and scale the stats window, and close it whenever you like.
 - A **What's new** page shows every update.
 
@@ -96,6 +96,7 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 | `/onecast tackle` | Tackle box settings |
 | `/onecast tackle reset` | Move the tackle box button back to its first place |
 | `/onecast book` | Fishing collection |
+| `/onecast theme` | Switch window theme (or `/onecast theme dark`) |
 | `/onecast reset` | Start a new session |
 | `/onecast gear` | Put your weapons back on |
 | `/onecast scan` | Price your catch with Auctionator (auction house open) |

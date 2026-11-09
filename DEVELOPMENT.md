@@ -18,6 +18,7 @@ Each cast and reel is still one hardware press; nothing is automated.
 
 | File | What it holds |
 |---|---|
+| `Themes.lua` | The window themes: a table of colours, and tinting what each window registers |
 | `OneCast.lua` | Cast button, reel key override, CVar leases, options panel, minimap button, slash commands |
 | `Gear.lua` | Equipping the pole from the bags and putting weapons back |
 | `Lure.lua` | Lure data, the character's choice, whether one is on the pole, and the presses that apply it |

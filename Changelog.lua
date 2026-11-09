@@ -6,6 +6,18 @@ local _, ns = ...
 
 ns.CHANGELOG = {
 	{
+		version = "0.6.0",
+		date = "9 November 2026",
+		sections = {
+			{ "New", {
+				{ "Themes.", "Pick the look of OneCast's windows in the options: Forever, the game's own style and still the default, Dark, Tidal, Abyss, Golden Hour, Marsh, Moonlit, the wood-panelled Fisherman's Lodge, or Class Colours to match the character you're playing. Every window changes the moment you pick one, or use /onecast theme." },
+			} },
+			{ "Changed", {
+					{ "A friendlier options menu.", "Themes are now at the very top, with your cast key and a button for every window right below. Everything else moved to short pages under OneCast in the sidebar: Fishing, Lures, Sound, and Stats and alerts. Settings that depend on another one grey out while it's off. Nothing you've set has changed." },
+			} },
+		},
+	},
+	{
 		version = "0.5.2",
 		date = "8 November 2026",
 		sections = {
