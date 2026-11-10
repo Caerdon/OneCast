@@ -891,8 +891,48 @@ local function IsFishingSpell(spellID)
 	return SpellName(spellID) == fishingName
 end
 
+-- The line comes in: the key goes back to casting, and the weapons' idle timer starts.
+local function LineIn()
+	fishing = false
+	reelEndedAt = GetTime()
+	StopReelMode()
+	ns.Gear.OnFishingStopped()
+end
+
+-- While the key is borrowed for reeling, check now and then that a line really is out. The
+-- game says when a cast ends, but if that's ever missed (a loading screen, a disconnect) the key
+-- would stay on "interact" and never cast again. Checked out of combat only: in a fight the key
+-- is already given back (PLAYER_REGEN_DISABLED), and bindings can't change.
+local WATCH_EVERY = 2
+local watch
+
+local function LineIsOut()
+	local _, _, _, _, _, _, _, spellID = UnitChannelInfo("player")
+	return IsFishingSpell(spellID)
+end
+
+local function StopWatch()
+	if watch then
+		watch:Cancel()
+		watch = nil
+	end
+end
+
+local function Watch()
+	StopWatch()
+	watch = C_Timer.NewTicker(WATCH_EVERY, function()
+		if not fishing then
+			StopWatch()
+		elseif not InCombatLockdown() and not LineIsOut() then
+			StopWatch()
+			LineIn()
+		end
+	end)
+end
+
 local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
+events:RegisterEvent("PLAYER_ENTERING_WORLD")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterEvent("PLAYER_LOGOUT")
 events:RegisterEvent("PLAYER_REGEN_DISABLED")
@@ -941,6 +981,7 @@ events:SetScript("OnEvent", function(_, event, ...)
 		if IsFishingSpell(spellID) then
 			fishing = true
 			StartReelMode()
+			Watch()
 			CheckBagSpace()
 			ns.Pools.OnCast()
 			ns.Stats.OnCast()
@@ -948,10 +989,14 @@ events:SetScript("OnEvent", function(_, event, ...)
 		end
 	elseif event == "UNIT_SPELLCAST_CHANNEL_STOP" then
 		if fishing then
-			fishing = false
-			reelEndedAt = GetTime()
-			StopReelMode()
-			ns.Gear.OnFishingStopped()
+			StopWatch()
+			LineIn()
+		end
+	elseif event == "PLAYER_ENTERING_WORLD" then
+		-- Past a loading screen, a line that was out is gone.
+		if fishing and not InCombatLockdown() and not LineIsOut() then
+			StopWatch()
+			LineIn()
 		end
 	elseif event == "PLAYER_REGEN_DISABLED" then
 		ns.Gear.OnCombatStart()
@@ -967,6 +1012,7 @@ events:SetScript("OnEvent", function(_, event, ...)
 		if IsFishingSpell(spellID) then
 			fishing = true
 			StartReelMode()
+			Watch()
 		end
 	elseif event == "PLAYER_EQUIPMENT_CHANGED" then
 		UpdateQuiet()

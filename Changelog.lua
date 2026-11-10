@@ -6,6 +6,18 @@ local _, ns = ...
 
 ns.CHANGELOG = {
 	{
+		version = "0.7.2",
+		date = "10 November 2026",
+		sections = {
+			{ "Fixed", {
+				{ "Equipping the pole and weapons on a slow server.", "If the game took a moment longer than usual, OneCast could decide your pole couldn't be equipped and stop trying until a reload, and give up putting your weapons back. It now waits longer, keeps trying, and finishes a swap that lands late. Thanks to xDevastation1988x for the report!" },
+				{ "A key stuck on reeling.", "If the game ever didn't say a cast had ended, after a loading screen or a disconnect, your key could stay on reeling in and never cast again until a reload. OneCast now checks, and gives it back." },
+				{ "A second lure on a slow server.", "With Apply with the cast key on, a lure slow to show on your pole could be taken for none, and the next press would spend another. OneCast now waits for it." },
+				{ "Item is locked.", "Putting your weapons back could ask for the same one twice at once, which the game answered with Item is locked. It now asks once." },
+			} },
+		},
+	},
+	{
 		version = "0.7.1",
 		date = "10 November 2026",
 		sections = {
