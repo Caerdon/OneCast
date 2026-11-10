@@ -808,12 +808,12 @@ SlashCmdList.ONECAST = function(msg)
 		ns.Book.RefreshIfShown()
 		Print("remembered pools cleared.")
 		return
-	elseif cmd:match("^theme") then
+	elseif cmd == "theme" or cmd:match("^theme%s") then
 		local name = cmd:match("^theme%s+(%a+)")
 		local label = ns.Theme.Choose(name)
 		Print(label and ("theme: " .. label) or ("no theme called " .. name .. ". Try " .. table.concat(ns.Theme.ORDER, ", ") .. "."))
 		return
-	elseif cmd:match("^scale") then
+	elseif cmd == "scale" or cmd:match("^scale%s") then
 		local percent = tonumber(cmd:match("^scale%s+(%d+)"))
 		if percent then
 			ns.Stats.SetScale(percent)

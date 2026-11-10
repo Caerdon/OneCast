@@ -6,6 +6,25 @@ local _, ns = ...
 
 ns.CHANGELOG = {
 	{
+		version = "0.6.1",
+		date = "10 November 2026",
+		sections = {
+			{ "Fixed", {
+				{ "Zone fishing levels.", "Winterspring, Silithus, Eastern Plaguelands, Burning Steppes and Deadwind Pass need 425 for no getaways, not 300. The capital cities need 75, not 25. Badlands, Blasted Lands and Searing Gorge are gone from the Zones tab: they have no water to fish." },
+				{ "Fish found in the wrong places.", "Zulian Mudskunk only comes from Zul'Gurub, and Deviate Fish only from the Barrens and Wailing Caverns. Their pages listed zones they're never caught in." },
+				{ "Zul'Gurub's pool.", "Muddy Churning Waters is now remembered on the book's maps, along with Strange Pool and Pure Water." },
+				{ "Weapons that won't go back on.", "If the game refuses to re-equip a weapon, OneCast now says so and stops, instead of quietly swapping it back in the next time you change weapons yourself." },
+				{ "Commands.", "/onecast theme and /onecast scale no longer react to other words that start the same way." },
+			} },
+			{ "New", {
+				{ "Dungeons and lakes.", "Fishing levels for the Deadmines, Wailing Caverns, Blackfathom Deeps, Scarlet Monastery, Sunken Temple, Maraudon, Zul'Gurub, Stratholme and Scholomance. Waters with a level of their own, like Jademir Lake in Feralas, use it while you stand there, and a getaway there doesn't count against the rest of the zone." },
+				{ "Three more catches.", "Steelscale Crushfish, Darkshore Grouper and Oil Covered Fish are in the collection, and the big Mightfish, Lobster and Yellowtail trophies now show where they're caught." },
+				{ "\"Secret\" Bait.", "Forever's new lure is in the tackle box, at +25 like a Shiny Bauble." },
+				{ "Zephras Isle.", "Listed on the Zones tab with Forever's other new zones." },
+			} },
+		},
+	},
+	{
 		version = "0.6.0",
 		date = "9 November 2026",
 		sections = {

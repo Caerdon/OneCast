@@ -25,6 +25,8 @@ local pendingPole            -- item ID of the pole last asked for
 local failedPoles = {}       -- poles the game wouldn't equip this session (skill too low, say)
 local restoring = false
 local restoreTimer
+local restoreAttempt -- the latest swap asked for; gives up if the game never makes it
+local SWAP_TIMEOUT = 3
 
 function Gear.IsPole(item)
 	if not item then
@@ -135,8 +137,25 @@ local function Owned(link)
 	return (count or 0) > 0
 end
 
+local RestoreStep
+
+-- Ask for one swap. The game can refuse without a word (a weapon you can no longer use, say):
+-- then no change ever lands, so after a few seconds stop, rather than staying mid-restore and
+-- undoing the next weapon you equip yourself. The saved weapons are kept to try again.
+local function Swap(link, slot)
+	local attempt = {}
+	restoreAttempt = attempt
+	Equip(link, slot)
+	C_Timer.After(SWAP_TIMEOUT, function()
+		if restoring and restoreAttempt == attempt and not InCombatLockdown() and not Wearing(slot, link) then
+			restoring = false
+			ns.Print("couldn't put " .. link .. " back on. Equip it yourself, or try /onecast gear again.")
+		end
+	end)
+end
+
 -- One step of putting the saved weapons back; repeated as each swap lands.
-local function RestoreStep()
+RestoreStep = function()
 	local saved = charDB.savedWeapons
 	if not saved then
 		restoring = false
@@ -152,7 +171,7 @@ local function RestoreStep()
 		end
 	end
 	if saved.main and not Wearing(MAIN, saved.main) then
-		Equip(saved.main, MAIN)
+		Swap(saved.main, MAIN)
 		return
 	end
 	if not saved.main and MainHandIsPole() then
@@ -163,7 +182,7 @@ local function RestoreStep()
 		return
 	end
 	if saved.off and not Wearing(OFF, saved.off) then
-		Equip(saved.off, OFF)
+		Swap(saved.off, OFF)
 		return
 	end
 	charDB.savedWeapons = nil

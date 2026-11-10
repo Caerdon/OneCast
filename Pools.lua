@@ -18,7 +18,7 @@ local MAX_PER_MAP = 200
 
 local PATTERNS = {
 	" School$", "^School of ", " Swarm$", " Wreckage$", " Debris$", " Flotsam$", "^Oil Spill$",
-	"^Patch of Elemental Water$", "Churning Water$",
+	"^Patch of Elemental Water$", "Churning Waters?$", "^Strange Pool$", "^Pure Water$",
 }
 
 local function IsPoolName(name)

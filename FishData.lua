@@ -4,13 +4,17 @@
 -- (1.60.1.70790, 4 November 2026, read from the client's game data on wago.tools): every
 -- item below exists there, and every recipe uses the fish as a reagent.
 --
+-- Rechecked against build 1.60.1.70862 (7 November 2026, still the newest on 10 November).
+--
 -- `zones` came from Wowhead's Forever zone Fishing tabs (23 October 2026), most common
 -- first, zones under 2% of a fish's catches dropped. Those tabs turned out to be copied
 -- from Classic Era (identical catch counts), so treat `zones` as Classic data until
 -- Forever's own loot is observed. Zones from elsewhere are in `more` with their source:
--- "classic" (Classic Era knowledge) or "reported" (Forever player reports). Fish with
--- neither, such as most trophies and bloated fish added at launch, have no known zones
--- yet; the book fills them in from your own catches.
+-- "classic" (Classic Era knowledge) or "reported" (Forever player reports). "classic" zones
+-- are from CMaNGOS's Classic 1.12 world database (fishing and fishing pool loot), used where
+-- Wowhead had nothing or was plainly wrong (Deviate Fish, Zulian Mudskunk). Fish with
+-- neither, such as the bloated fish, have no known zones yet; the book fills them in from
+-- your own catches.
 --
 -- Fields: id (item), name, cat ("fish", "special", "trophy", "bloated"), zones (most
 -- common first), more ({ zone, source }), recipes ({ spell ID, name, profession, skill };
@@ -26,6 +30,7 @@ ns.FISH = {
 		zones = { "Mulgore", "Elwynn Forest", "Westfall", "Tirisfal Glades" },
 	},
 	{ id = 13917, name = "103 Pound Mightfish", cat = "trophy",
+		more = { { "Azshara", "classic" } },
 	},
 	{ id = 13909, name = "12 Pound Lobster", cat = "trophy",
 		zones = { "Eastern Plaguelands" },
@@ -34,6 +39,7 @@ ns.FISH = {
 		zones = { "Elwynn Forest", "Duskwood", "Westfall", "Teldrassil" },
 	},
 	{ id = 13910, name = "15 Pound Lobster", cat = "trophy",
+		more = { { "Azshara", "classic" } },
 	},
 	{ id = 6295, name = "15 Pound Mud Snapper", cat = "trophy",
 		zones = { "Durotar", "Elwynn Forest" },
@@ -51,8 +57,10 @@ ns.FISH = {
 		zones = { "Thousand Needles", "Wetlands", "Stormwind City", "Swamp of Sorrows", "The Barrens", "Stonetalon Mountains", "Ashenvale", "Arathi Highlands", "Dustwallow Marsh", "Tirisfal Glades", "Duskwood", "Alterac Mountains" },
 	},
 	{ id = 13911, name = "19 Pound Lobster", cat = "trophy",
+		more = { { "Azshara", "classic" } },
 	},
 	{ id = 13912, name = "21 Pound Lobster", cat = "trophy",
+		more = { { "Azshara", "classic" } },
 	},
 	{ id = 6311, name = "22 Pound Catfish", cat = "trophy",
 		zones = { "Swamp of Sorrows", "Stonetalon Mountains", "Thousand Needles", "Arathi Highlands", "Westfall", "Ashenvale", "Tirisfal Glades", "Dustwallow Marsh" },
@@ -93,6 +101,7 @@ ns.FISH = {
 		zones = { "Un'Goro Crater" },
 	},
 	{ id = 13877, name = "47 Pound Yellowtail", cat = "trophy",
+		more = { { "Azshara", "classic" }, { "Tanaris", "classic" } },
 	},
 	{ id = 13884, name = "49 Pound Redgill", cat = "trophy",
 		zones = { "Un'Goro Crater" },
@@ -101,22 +110,28 @@ ns.FISH = {
 		zones = { "Western Plaguelands" },
 	},
 	{ id = 13878, name = "53 Pound Yellowtail", cat = "trophy",
+		more = { { "Azshara", "classic" }, { "Tanaris", "classic" } },
 	},
 	{ id = 13879, name = "59 Pound Yellowtail", cat = "trophy",
+		more = { { "Azshara", "classic" }, { "Tanaris", "classic" } },
 	},
 	{ id = 13880, name = "68 Pound Yellowtail", cat = "trophy",
+		more = { { "Azshara", "classic" }, { "Tanaris", "classic" } },
 	},
 	{ id = 13907, name = "7 Pound Lobster", cat = "trophy",
 		zones = { "Eastern Plaguelands" },
 	},
 	{ id = 13914, name = "70 Pound Mightfish", cat = "trophy",
+		more = { { "Azshara", "classic" } },
 	},
 	{ id = 13915, name = "85 Pound Mightfish", cat = "trophy",
+		more = { { "Azshara", "classic" } },
 	},
 	{ id = 13908, name = "9 Pound Lobster", cat = "trophy",
 		zones = { "Eastern Plaguelands" },
 	},
 	{ id = 13916, name = "92 Pound Mightfish", cat = "trophy",
+		more = { { "Azshara", "classic" } },
 	},
 	{ id = 7973, name = "Big-mouth Clam", cat = "special",
 		zones = { "Azshara", "Eastern Plaguelands", "Tanaris", "Feralas" },
@@ -158,8 +173,11 @@ ns.FISH = {
 		zones = { "Eastern Plaguelands" },
 		recipes = { { 18245, "Lobster Stew", "Cooking", 275 }, { 470359, "Darkclaw Bisque", "Cooking", 300 }, { 1225763, "Grand Lobster Banquet", "Cooking", 280 } },
 	},
+	{ id = 12238, name = "Darkshore Grouper", cat = "special",
+		more = { { "Darkshore", "classic" } },
+	},
 	{ id = 6522, name = "Deviate Fish", cat = "special",
-		zones = { "Azshara", "Moonglade", "Orgrimmar", "Undercity", "Dustwallow Marsh", "Western Plaguelands", "Thousand Needles", "Tanaris" },
+		more = { { "The Barrens", "classic" }, { "Wailing Caverns", "classic" } },
 		recipes = { { 8238, "Savory Deviate Delight", "Cooking", 85 }, { 8240, "Elixir of Giant Growth", "Alchemy", 90 } },
 	},
 	{ id = 19806, name = "Dezian Queenfish", cat = "special", event = "extravaganza",
@@ -185,6 +203,9 @@ ns.FISH = {
 	},
 	{ id = 16970, name = "Misty Reed Mahi Mahi", cat = "special",
 		more = { { "Swamp of Sorrows", "classic" } },
+	},
+	{ id = 6458, name = "Oil Covered Fish", cat = "special",
+		more = { { "Stonetalon Mountains", "classic" }, { "The Barrens", "classic" } },
 	},
 	{ id = 6358, name = "Oily Blackmouth", cat = "fish",
 		zones = { "Stranglethorn Vale", "Feralas", "The Barrens", "Darkshore", "Moonglade", "Westfall", "Tanaris", "Western Plaguelands", "Wetlands", "Eastern Plaguelands", "Azshara", "Hillsbrad Foothills", "Dustwallow Marsh", "Felwood", "The Hinterlands", "Silverpine Forest" },
@@ -284,6 +305,9 @@ ns.FISH = {
 	{ id = 1467, name = "Spotted Sunfish", cat = "special",
 		zones = { "Redridge Mountains" },
 	},
+	{ id = 6360, name = "Steelscale Crushfish", cat = "special",
+		more = { { "Wetlands", "classic" }, { "Hillsbrad Foothills", "classic" }, { "Ashenvale", "classic" } },
+	},
 	{ id = 13422, name = "Stonescale Eel", cat = "fish",
 		zones = { "Azshara", "Tanaris", "Feralas", "Eastern Plaguelands" },
 		more = { { "Riverglades", "reported" } },
@@ -298,7 +322,7 @@ ns.FISH = {
 		recipes = { { 20626, "Undermine Clam Chowder", "Cooking", 225 }, { 1250158, "Clam Linguine", "Cooking", 275 } },
 	},
 	{ id = 19975, name = "Zulian Mudskunk", cat = "special",
-		zones = { "Elwynn Forest", "Blasted Lands", "Orgrimmar", "Westfall", "Silithus", "Tirisfal Glades", "Undercity", "Duskwood", "Hillsbrad Foothills", "Winterspring", "Eastern Plaguelands" },
+		more = { { "Zul'Gurub", "classic" } },
 	},
 }
 

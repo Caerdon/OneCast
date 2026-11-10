@@ -485,7 +485,17 @@ local function OnFishEscaped()
 	local s = Session()
 	s.escapes = (s.escapes or 0) + 1
 	charDB.lifetime.escapes = (charDB.lifetime.escapes or 0) + 1
-	local z = ZoneTotals(CurrentZone())
+	local zone = CurrentZone()
+	local rank, _, modifier = FishingSkill()
+	-- Short of a sub-zone's own higher level, a getaway is expected there and says nothing
+	-- about the rest of the zone. The spot is where the line went out, not where you are now.
+	local spot = zone == castZone and castSpot or CurrentSpot(zone)
+	local spotNeeded = ns.SPOT_FISHING_SKILL and ns.SPOT_FISHING_SKILL[spot]
+	if spotNeeded and rank and rank + modifier < spotNeeded then
+		RefreshIfShown()
+		return
+	end
+	local z = ZoneTotals(zone)
 	z.escapes = (z.escapes or 0) + 1
 	-- The highest skill a fish has got away at, lure included: later skill-ups can outgrow it.
 	-- An old value a clean run has already cleared doesn't count.
@@ -493,7 +503,6 @@ local function OnFishEscaped()
 		z.escapeSkill = nil
 	end
 	z.cleanCatches = 0
-	local rank, _, modifier = FishingSkill()
 	if rank then
 		z.escapeSkill = math.max(z.escapeSkill or 0, rank + modifier)
 	end
@@ -710,15 +719,19 @@ end
 --   "level"    a known level, but this character's skill can't be read
 --   "ok"       skill meets the known level
 --   "short"    skill is `short` points below the known level
--- Shared by the stats window and the book's Zones view, so the two can't disagree.
-function Stats.ZoneStatus(zone)
+-- Shared by the stats window and the book's Zones view, so the two can't disagree. `spot`,
+-- the sub-zone you're standing in, uses its own level where it has one (SPOT_FISHING_SKILL);
+-- `place` is then the spot's name rather than the zone's.
+function Stats.ZoneStatus(zone, spot)
 	local rank, _, modifier = FishingSkill()
 	local here = charDB.zoneStats[zone]
 	-- Enough catches in a row since the last getaway and it no longer counts against the zone:
 	-- it could have come from a lure's bonus, or from before a skill-up.
 	local cleared = here and (here.cleanCatches or 0) >= CLEAN_CATCHES
+	local spotNeeded = spot and ns.SPOT_FISHING_SKILL and ns.SPOT_FISHING_SKILL[spot]
 	local status = {
-		needed = ns.ZONE_FISHING_SKILL and ns.ZONE_FISHING_SKILL[zone],
+		place = spotNeeded and spot or zone,
+		needed = spotNeeded or ns.ZONE_FISHING_SKILL and ns.ZONE_FISHING_SKILL[zone],
 		note = ns.ZONE_FISHING_NOTE and ns.ZONE_FISHING_NOTE[zone],
 		escapes = not cleared and here and here.escapes or 0,
 		catches = here and here.catches or 0,
@@ -757,12 +770,13 @@ function Stats.ZoneStatus(zone)
 end
 
 -- The zone's status as a coloured sentence, for dark backgrounds.
-function Stats.ZoneVerdict(zone)
+function Stats.ZoneVerdict(zone, spot)
 	local rank, maxRank = FishingSkill()
 	if not rank then
 		return GREY .. "Fishing skill not found.|r"
 	end
-	local status = Stats.ZoneStatus(zone)
+	local status = Stats.ZoneStatus(zone, spot)
+	zone = status.place
 	if status.kind == "note" then
 		return string.format("|cff1eff00%s: %s.|r", zone, status.note)
 	elseif status.kind == "getaways" and status.needed then
@@ -798,7 +812,8 @@ Stats.FishingSkill = FishingSkill
 -- Skill bar fraction, value text and the verdict for the current zone.
 local function SkillStatus()
 	local rank, maxRank, modifier = FishingSkill()
-	local verdict = Stats.ZoneVerdict(CurrentZone())
+	local zone = CurrentZone()
+	local verdict = Stats.ZoneVerdict(zone, CurrentSpot(zone))
 	if not rank then
 		return 0, "?", verdict
 	end
@@ -1690,6 +1705,7 @@ events:RegisterEvent("UI_ERROR_MESSAGE")
 events:RegisterEvent("ITEM_DATA_LOAD_RESULT")
 events:RegisterEvent("SKILL_LINES_CHANGED")
 events:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+events:RegisterEvent("ZONE_CHANGED") -- a new sub-zone: a lake can have its own level
 events:RegisterEvent("PLAYER_EQUIPMENT_CHANGED")
 events:SetScript("OnEvent", function(_, event, ...)
 	if event == "ADDON_LOADED" then

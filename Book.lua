@@ -92,14 +92,20 @@ local function FishQuality(fish)
 	return C_Item.GetItemQualityByID(fish.id) or fish.quality or 1
 end
 
--- Lowest zone fishing level among the fish's zones: its easiest waters.
+-- Lowest zone fishing level among the fish's zones, listed or from elsewhere: its easiest waters.
 local function EasiestSkill(fish)
 	local best
-	for _, zone in ipairs(fish.zones or {}) do
+	local function Consider(zone)
 		local skill = ns.ZONE_FISHING_SKILL and ns.ZONE_FISHING_SKILL[zone]
 		if skill and skill > 1 and (not best or skill < best) then
 			best = skill
 		end
+	end
+	for _, zone in ipairs(fish.zones or {}) do
+		Consider(zone)
+	end
+	for _, extra in ipairs(fish.more or {}) do
+		Consider(extra[1])
 	end
 	return best
 end
