@@ -1,4 +1,4 @@
-# OneCast – One-Button Fishing for WoW Forever
+# OneCast
 
 **One key to cast, the same key to reel.** OneCast turns fishing into a single button and adds everything around it: lures on your terms, a collection book of every fish in WoW Forever, fishing levels for every zone, and stats that show what your time on the water is worth.
 
