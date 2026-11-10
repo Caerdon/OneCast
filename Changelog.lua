@@ -6,6 +6,15 @@ local _, ns = ...
 
 ns.CHANGELOG = {
 	{
+		version = "0.7.3",
+		date = "10 November 2026",
+		sections = {
+			{ "Fixed", {
+				{ "An error at login.", "OneCast asked the game for an event it no longer has (LEARNED_SPELL_IN_TAB), which showed as Attempt to register unknown event on every load. The Camp tab now listens for its newer name, LEARNED_SPELL_IN_SKILL_LINE, and refreshes after a recipe is learned as before. Thanks to Caerdon for the report!" },
+			} },
+		},
+	},
+	{
 		version = "0.7.2",
 		date = "10 November 2026",
 		sections = {

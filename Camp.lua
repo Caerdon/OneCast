@@ -166,7 +166,7 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("PLAYER_LOGIN")
 events:RegisterUnitEvent("UNIT_AURA", "player")
 events:RegisterEvent("BAG_UPDATE_DELAYED")
-events:RegisterEvent("LEARNED_SPELL_IN_TAB")
+events:RegisterEvent("LEARNED_SPELL_IN_SKILL_LINE")
 events:SetScript("OnEvent", function(_, event)
 	if event == "PLAYER_LOGIN" then
 		local craft = Camp.ActiveBuff()
