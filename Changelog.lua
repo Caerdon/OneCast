@@ -6,6 +6,15 @@ local _, ns = ...
 
 ns.CHANGELOG = {
 	{
+		version = "0.7.1",
+		date = "10 November 2026",
+		sections = {
+			{ "Fixed", {
+				{ "CurseForge links.", "OneCast's CurseForge page has a new, shorter address. The data report's CurseForge link and What's new's link now go there." },
+			} },
+		},
+	},
+	{
 		version = "0.7.0",
 		date = "10 November 2026",
 		sections = {

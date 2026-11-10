@@ -394,7 +394,7 @@ local STEPS_WIDTH = WINDOW_WIDTH - 100 -- the banner, less its icon and margins
 local LINK_HEIGHT, LINK_GAP = 20, 6
 -- Where reports go. The GitHub link opens the repo's Data report issue form.
 Report.WHERE = {
-	{ label = "CurseForge", url = "https://www.curseforge.com/wow/addons/onecast-one-button-fishing-for-wow-forever/comments" },
+	{ label = "CurseForge", url = "https://www.curseforge.com/wow/addons/onecast/comments" },
 	{ label = "GitHub", url = "https://github.com/rynmon/OneCast/issues/new?template=data-report.yml" },
 }
 local HEADER_HEIGHT, SECTION_GAP = 26, 6

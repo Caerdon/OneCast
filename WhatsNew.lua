@@ -8,7 +8,7 @@ local ADDON, ns = ...
 local WhatsNew = {}
 ns.WhatsNew = WhatsNew
 
-local PROJECT_URL = "https://www.curseforge.com/wow/addons/onecast-one-button-fishing-for-wow-forever"
+local PROJECT_URL = "https://www.curseforge.com/wow/addons/onecast"
 local LINK = "addon:" .. ADDON .. ":whatsnew"
 
 local WIDTH, HEIGHT = 760, 520
