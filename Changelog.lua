@@ -6,6 +6,33 @@ local _, ns = ...
 
 ns.CHANGELOG = {
 	{
+		version = "0.7.0",
+		date = "10 November 2026",
+		sections = {
+			{ "New", {
+				{ "Camp tab.", "Forever's fishing crafts for its camps, in the collection book: the Fish Bowl, Fishing Rack and Fishing Hut, with the Fishing each needs, whether you've learned it, your reagents against what it takes, and what it does. /onecast camp opens it." },
+				{ "Camp buffs.", "The stats window shows Uncommon or Rare Fishing from a Rack or Hut with its time left, and chat says when it wears off. What you catch while one is on is kept, to show what their extra rewards really are." },
+				{ "Help fill in Forever's numbers.", "/onecast report gives your catches and getaways as text, with the skill each happened at, to paste in a comment or a GitHub issue. Nobody has published Forever's real zone levels yet: shared reports let OneCast replace Classic's with Forever's own. It holds fishing numbers only, no name or realm." },
+				{ "Data to share.", "When your fishing shows something OneCast doesn't know yet, such as a zone with no known level, a level that looks wrong or a fish somewhere new, chat says so once, and the minimap button counts it until you copy your report. The stats window's new Report button shows a green dot, the book's Zones tab marks those zones as new data, and the Zones and Camp tabs have a Share your data button." },
+			} },
+			{ "Quality of life", {
+				{ "A menu on the minimap button.", "Left-click it for every OneCast window in one place: the stats window, tackle box, collection, Camp tab, data report, What's new and options. Right-click and Shift-click still open the stats window and the collection." },
+				{ "Spots on the map.", "Click a spot on the stats window's Zone tab to open the world map there, with a waypoint: where you fish from once you have, or else the spot's own place on the map, from the game's map data. City districts like Stormwind's canals aren't on it, so those learn their place as you fish them." },
+				{ "Tooltips everywhere.", "Hover a recipe on a fish's page for the recipe itself, the fish's name for the fish, and a camp's reagents, campfires and buff for their own tooltips. Shift-click any of them to link it in chat." },
+				{ "Maps from the book.", "Right-click a zone on the Zones tab or a fish's page for its world map, click the little map for the big one, and click a pool you've found for a waypoint to it." },
+				{ "Windows stay where you put them.", "The collection book, What's new and the data report now open where you last dragged them, like the stats window and tackle box." },
+				{ "Links in chat.", "Lures, Speckled Tastyfish and camp buffs in OneCast's chat messages are links you can hover." },
+			} },
+			{ "Fixed", {
+				{ "Riverglades needs 225.", "The first level measured in Forever itself: fish got away below 175 on its coast, and none did at 225. It replaces the old note that Riverglades had no minimum skill. Thanks to the player who tested it with and without a lure!" },
+				{ "Getaways.", "Fish getting away weren't being counted in Forever, which shows the message differently. OneCast now catches it however the game shows it, in any language. Thanks to a player whose fish got away in Riverglades while OneCast said none had!" },
+				{ "Opening and closing the options.", "Opening OneCast's options from one of its windows no longer closes that window, or any other OneCast window. And options opened from OneCast (the minimap button, /onecast or a window's Options button) now just close, instead of leaving the game menu open. Opened from the game menu, they still go back to it." },
+				{ "Dungeons.", "Wailing Caverns, which Forever calls The Wailing Caverns, now has its level. Every dungeon is recognised by the game's map, whatever its name." },
+				{ "More places for common fish.", "Raw Bristle Whisker Catfish, Raw Longjaw Mud Snapper and Raw Brilliant Smallfish are caught in Loch Modan, and the Mud Snapper in Wailing Caverns, and Raw Rockscale Cod, Raw Spotted Yellowtail and Oily Blackmouth on Riverglades' coast, from players' reports." },
+			} },
+		},
+	},
+	{
 		version = "0.6.1",
 		date = "10 November 2026",
 		sections = {

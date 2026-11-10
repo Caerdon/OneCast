@@ -10,7 +10,8 @@
 -- first, zones under 2% of a fish's catches dropped. Those tabs turned out to be copied
 -- from Classic Era (identical catch counts), so treat `zones` as Classic data until
 -- Forever's own loot is observed. Zones from elsewhere are in `more` with their source:
--- "classic" (Classic Era knowledge) or "reported" (Forever player reports). "classic" zones
+-- "classic" (Classic Era knowledge) or "reported" (Forever player reports, such as catches in
+-- /onecast report data). "classic" zones
 -- are from CMaNGOS's Classic 1.12 world database (fishing and fishing pool loot), used where
 -- Wowhead had nothing or was plainly wrong (Deviate Fish, Zulian Mudskunk). Fish with
 -- neither, such as the bloated fish, have no known zones yet; the book fills them in from
@@ -188,6 +189,7 @@ ns.FISH = {
 	},
 	{ id = 6359, name = "Firefin Snapper", cat = "fish",
 		zones = { "Stranglethorn Vale", "Tanaris", "Feralas", "Azshara", "Wetlands", "Stonetalon Mountains", "Dustwallow Marsh", "Hillsbrad Foothills" },
+		more = { { "Riverglades", "reported" } },
 		recipes = { { 7837, "Fire Oil", "Alchemy", 130 } },
 	},
 	{ id = 19805, name = "Keefer's Angelfish", cat = "special", event = "extravaganza",
@@ -209,14 +211,17 @@ ns.FISH = {
 	},
 	{ id = 6358, name = "Oily Blackmouth", cat = "fish",
 		zones = { "Stranglethorn Vale", "Feralas", "The Barrens", "Darkshore", "Moonglade", "Westfall", "Tanaris", "Western Plaguelands", "Wetlands", "Eastern Plaguelands", "Azshara", "Hillsbrad Foothills", "Dustwallow Marsh", "Felwood", "The Hinterlands", "Silverpine Forest" },
+		more = { { "Riverglades", "reported" } },
 		recipes = { { 7836, "Blackmouth Oil", "Alchemy", 80 } },
 	},
 	{ id = 6291, name = "Raw Brilliant Smallfish", cat = "fish",
 		zones = { "Elwynn Forest", "Stormwind City", "Mulgore", "Orgrimmar", "Tirisfal Glades", "Teldrassil", "Dun Morogh", "Thunder Bluff", "Darkshore", "Azshara", "Durotar", "Undercity", "The Barrens" },
+		more = { { "Loch Modan", "reported" } },
 		recipes = { { 7751, "Brilliant Smallfish", "Cooking", 1 }, { 1229745, "Fish Bowl", "Fishing", 20 } },
 	},
 	{ id = 6308, name = "Raw Bristle Whisker Catfish", cat = "fish",
 		zones = { "Dustwallow Marsh", "Stormwind City", "Redridge Mountains", "Stonetalon Mountains", "Ashenvale", "Orgrimmar", "Hillsbrad Foothills", "Arathi Highlands", "Thunder Bluff", "Duskwood", "The Barrens", "Darkshore" },
+		more = { { "Loch Modan", "reported" } },
 		recipes = { { 7755, "Bristle Whisker Catfish", "Cooking", 100 } },
 	},
 	{ id = 13754, name = "Raw Glossy Mightfish", cat = "fish",
@@ -233,6 +238,7 @@ ns.FISH = {
 	},
 	{ id = 6289, name = "Raw Longjaw Mud Snapper", cat = "fish",
 		zones = { "Stormwind City", "Orgrimmar", "Elwynn Forest", "Thunder Bluff", "Darkshore", "Redridge Mountains", "The Barrens", "Stonetalon Mountains", "Undercity", "Mulgore", "Ashenvale", "Tirisfal Glades", "Duskwood", "Moonglade" },
+		more = { { "Loch Modan", "reported" }, { "Wailing Caverns", "reported" } },
 		recipes = { { 7753, "Longjaw Mud Snapper", "Cooking", 50 } },
 	},
 	{ id = 8365, name = "Raw Mithril Head Trout", cat = "fish",
@@ -259,6 +265,7 @@ ns.FISH = {
 	},
 	{ id = 6362, name = "Raw Rockscale Cod", cat = "fish",
 		zones = { "Stranglethorn Vale", "Tanaris", "Dustwallow Marsh", "Swamp of Sorrows", "Feralas", "Desolace", "Azshara" },
+		more = { { "Riverglades", "reported" } },
 		recipes = { { 7828, "Rockscale Cod", "Cooking", 175 }, { 1225762, "Specklefin Feast", "Cooking", 280 } },
 	},
 	{ id = 21071, name = "Raw Sagefish", cat = "fish",
@@ -271,6 +278,7 @@ ns.FISH = {
 	},
 	{ id = 4603, name = "Raw Spotted Yellowtail", cat = "fish",
 		zones = { "Tanaris", "Azshara", "Feralas", "Stranglethorn Vale", "Dustwallow Marsh", "The Hinterlands", "Eastern Plaguelands" },
+		more = { { "Riverglades", "reported" } },
 		recipes = { { 18238, "Spotted Yellowtail", "Cooking", 225 }, { 1225762, "Specklefin Feast", "Cooking", 280 } },
 	},
 	{ id = 13756, name = "Raw Summer Bass", cat = "fish",

@@ -27,6 +27,11 @@ local LEVELS = {
 	[225] = {
 		"Alterac Mountains", "Arathi Highlands", "Desolace", "Dustwallow Marsh",
 		"Stranglethorn Vale", "Swamp of Sorrows", "Thousand Needles", "Scarlet Monastery",
+		-- Forever's own, from a player's /onecast report (10 November 2026), fishing Eastwind
+		-- Shore: 3 got away at skill 150-174, none in 17 catches at 225-249. Its coast gives the
+		-- same catches as Classic's 225 zones (Rockscale Cod, Spotted Yellowtail, Sturdy Locked
+		-- Chest). Not a Classic number: a getaway above 225 would overrule it, as for any zone.
+		"Riverglades",
 	},
 	[300] = {
 		"Azshara", "Felwood", "Feralas", "Moonglade", "Tanaris", "The Hinterlands",
@@ -36,6 +41,26 @@ local LEVELS = {
 		"Burning Steppes", "Deadwind Pass", "Eastern Plaguelands", "Silithus", "Winterspring",
 		"Zul'Gurub", "Stratholme", "Scholomance",
 	},
+}
+
+-- Dungeons by instance map ID (GetInstanceInfo), with the name used in the tables above. The
+-- game's own name for a dungeon can differ from its area's: Forever calls Wailing Caverns "The
+-- Wailing Caverns". So inside one, OneCast files everything under this name instead.
+ns.INSTANCE_ZONES = {
+	[36] = "The Deadmines",
+	[43] = "Wailing Caverns",
+	[48] = "Blackfathom Deeps",
+	[189] = "Scarlet Monastery",
+	[109] = "Sunken Temple",
+	[349] = "Maraudon",
+	[309] = "Zul'Gurub",
+	[329] = "Stratholme",
+	[289] = "Scholomance",
+}
+
+-- Names the game has been seen to use for those dungeons, moved under the tables' name.
+ns.INSTANCE_ALIASES = {
+	["The Wailing Caverns"] = "Wailing Caverns",
 }
 
 -- Waters inside a zone with a level of their own, keyed by the sub-zone's name (what
@@ -55,15 +80,12 @@ for skill, zones in pairs(LEVELS) do
 	end
 end
 
--- Zones new in Forever (Riverglades, Shen'dralas, Mount Hyjal, Gilneas, Zephras Isle) have no
--- Classic level and no published Forever one, so they're left out above: the stats window
--- judges them from your own catches and getaways. The book's Zones view lists them all the same.
-ns.ZONE_FISHING_UNKNOWN = { "Riverglades", "Shen'dralas", "Mount Hyjal", "Gilneas", "Zephras Isle" }
+-- Zones new in Forever with no level yet (Shen'dralas, Mount Hyjal, Gilneas, Zephras Isle): the
+-- stats window judges them from your own catches and getaways. The book's Zones view lists them
+-- all the same. Riverglades was here until a player's report measured it (see 225 above).
+ns.ZONE_FISHING_UNKNOWN = { "Shen'dralas", "Mount Hyjal", "Gilneas", "Zephras Isle" }
 
--- Notes shown instead of a level, until a getaway in that zone proves them wrong.
-ns.ZONE_FISHING_NOTE = {
-	-- Forever bug report (ClassicWoWCommunity/forever-bugs#189, Sept 2026, still open at
-	-- launch): skill 1 catches every time here, though its fish are 225+ tier. Blizzard
-	-- may add a minimum at any time.
-	["Riverglades"] = "no minimum skill reported (open bug, may be fixed)",
-}
+-- Notes shown instead of a level, until a getaway in that zone proves them wrong:
+-- { [zone] = "text" }. Riverglades' "no minimum skill" (forever-bugs#189) was dropped when a
+-- player's report showed fish getting away there below 175.
+ns.ZONE_FISHING_NOTE = {}

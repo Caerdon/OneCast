@@ -44,6 +44,8 @@ local defaults = {
 	rememberPools = true,
 	bobberMarker = false,
 	theme = "forever",
+	campReminder = true,
+	reportHint = true,
 }
 -- Per character: skill and bags differ, and lures get used up.
 local charDefaults = {
@@ -85,6 +87,10 @@ local OPTIONS = {
 		tooltip = "Sound and a raid-warning flash when you catch something at or above the alert quality, or an item you've marked as wanted (right-click it in the stats window)." },
 	{ cmd = "pools", key = "rememberPools", label = "Remember fishing pools",
 		tooltip = "Hover over a fishing pool with your pole on and cast, and the spot you fished it from is marked on the collection book's zone maps. Pools move, so a mark shows where one has been. English pool names only. /onecast forgetpools clears them." },
+	{ cmd = "campreminder", key = "campReminder", label = "Camp buff reminders",
+		tooltip = "Say in chat when the Uncommon or Rare Fishing buff from a Fishing Rack or Fishing Hut wears off. The collection book's Camp tab has more on camps." },
+	{ cmd = "reporthint", key = "reportHint", label = "Tell me about data to share",
+		tooltip = "Say in chat when your fishing shows something OneCast doesn't know yet, like a zone with no known level or a fish somewhere new, so you can share it with /onecast report." },
 	{ cmd = "extravaganza", key = "extravaganza", label = "Fishing Extravaganza reminders",
 		tooltip = "Say in chat shortly before the Stranglethorn Fishing Extravaganza starts, and when it does (Classic's schedule: Sundays 14:00-16:00 realm time)." },
 	{ cmd = "loginmessage", key = "loginMessage", label = "Version in chat at login",
@@ -110,7 +116,7 @@ local OPTION_PAGES = {
 	},
 	{ name = "Stats and alerts",
 		{ "Stats window", "openOnCast", "statsScale", "sessionSummary" },
-		{ "Alerts", "alert", "alertQuality", "extravaganza" },
+		{ "Alerts", "alert", "alertQuality", "extravaganza", "campReminder", "reportHint" },
 		{ "Collection", "rememberPools" },
 	},
 }
@@ -162,6 +168,16 @@ local function Print(msg)
 	DEFAULT_CHAT_FRAME:AddMessage("|cff33bbffOneCast|r: " .. msg)
 end
 ns.Print = Print
+
+-- How many of an item are in the bags.
+function ns.ItemCount(item)
+	return (C_Item.GetItemCount or GetItemCount)(item) or 0
+end
+
+-- An item as a chat link, to hover or Shift-click, or `fallback` until the game has its data.
+function ns.ItemLink(itemID, fallback)
+	return select(2, C_Item.GetItemInfo(itemID)) or fallback
+end
 ns.GetFishingName = function()
 	return fishingName
 end
@@ -396,12 +412,52 @@ end
 -- Settings panel (Options > AddOns > OneCast).
 local settingsCategory
 
+-- Blizzard's options panel opens the game menu whenever it closes, however it was opened. Opened
+-- from OneCast (minimap button, /onecast, a window's Options button), closing it should just close
+-- it. So: note that OneCast asked, and when that panel closes, hide the game menu it brings up in
+-- the moment after. Opened from the game menu itself, closing still goes back there. Only hooks,
+-- after Blizzard's own code, so the options panel is never tainted.
+local settingsRequestedAt = -10
+local settingsOpenedByUs = false
+local skipGameMenuUntil = 0
+local settingsHooks = {} -- owner of the options-panel callback
+
 local function OpenSettings()
 	if InCombatLockdown() then
 		Print("options can't be opened in combat.")
 		return
 	end
+	settingsRequestedAt = GetTime()
+	-- The panel opening would close OneCast's own windows, the one this came from included.
+	if ns.UI and ns.UI.HoldOpenForOptions then
+		ns.UI.HoldOpenForOptions()
+	end
 	Settings.OpenToCategory(settingsCategory:GetID())
+	if SettingsPanel and SettingsPanel:IsShown() then
+		settingsOpenedByUs = true
+	end
+end
+
+if SettingsPanel then
+	SettingsPanel:HookScript("OnShow", function()
+		settingsOpenedByUs = GetTime() - settingsRequestedAt < 1
+	end)
+end
+if EventRegistry then
+	EventRegistry:RegisterCallback("SettingsPanel.OnHide", function()
+		if settingsOpenedByUs then
+			settingsOpenedByUs = false
+			skipGameMenuUntil = GetTime() + 0.5
+		end
+	end, settingsHooks)
+end
+if GameMenuFrame then
+	GameMenuFrame:HookScript("OnShow", function(self)
+		if GetTime() < skipGameMenuUntil then
+			skipGameMenuUntil = 0
+			HideUIPanel(self)
+		end
+	end)
 end
 ns.OpenSettings = OpenSettings
 
@@ -566,6 +622,7 @@ local function SetupSettings()
 		{ "Stats window", "Open stats", function() ns.Stats.Toggle() end, "Your catches this session, in this zone and over your lifetime." },
 		{ "Tackle box", "Open tackle box", function() ns.TackleBox.ToggleWindow() end, "Choose your lure and compare fish per hour with and without one." },
 		{ "Fishing collection", "Open collection", function() ns.Book.Show() end, "Every fish, which you've caught, and where to find the rest." },
+		{ "Data report", "Open report", function() ns.Report.Show() end, "Your catches and getaways as text, to share so OneCast can learn Forever's real fishing levels." },
 		{ "What's new", "Version " .. ns.VERSION, function() ns.WhatsNew.Show() end, "See what changed in each version of OneCast." },
 	}) do
 		layout:AddInitializer(CreateSettingsButtonInitializer(entry[1], entry[2], entry[3], entry[4], false))
@@ -588,6 +645,161 @@ local function SetupSettings()
 	Settings.RegisterAddOnCategory(category)
 	settingsCategory = category
 end
+
+-- The tooltip for the minimap button and the addon compartment, laid out like the game's own:
+-- the name and version, then gold labels with white values, then what a click does. Rows with
+-- nothing to say are left out. `isMinimap` adds the clicks only the minimap button has.
+local GOLD, WHITE, GREY, GREEN, RED = { 1, 0.82, 0 }, { 1, 1, 1 }, { 0.6, 0.6, 0.6 }, { 0.12, 1, 0 }, { 1, 0.3, 0.3 }
+local HINT = { 0.6, 0.8, 1 }
+
+function ns.FillTooltip(tip, isMinimap)
+	local function Row(label, value, color)
+		color = color or WHITE
+		tip:AddDoubleLine(label, value, GOLD[1], GOLD[2], GOLD[3], color[1], color[2], color[3])
+	end
+	local function Hint(click, action)
+		tip:AddDoubleLine(click, action, HINT[1], HINT[2], HINT[3], WHITE[1], WHITE[2], WHITE[3])
+	end
+	tip:AddDoubleLine("OneCast", "v" .. ns.VERSION, 1, 1, 1, GREY[1], GREY[2], GREY[3])
+	tip:AddLine(" ")
+
+	local keys = { GetBindingKey(BINDING_COMMAND) }
+	Row("Cast / reel", #keys > 0 and table.concat(keys, ", ") or "not bound", #keys > 0 and WHITE or RED)
+	local session = ns.Stats.Summary()
+	Row("Session", session or "nothing yet", session and WHITE or GREY)
+	local lure, problem = ns.Lure.StatusLine()
+	if lure then
+		Row("Lure", lure, problem and RED or WHITE)
+	end
+	local camp = ns.Camp and ns.Camp.StatusText()
+	if camp then
+		Row("Camp", camp, GREEN)
+	end
+	local contest = ns.Extravaganza and ns.Extravaganza.StatusLine(ns.Stats.CurrentZone())
+	if contest then
+		Row("Extravaganza", contest)
+	end
+	local unshared = ns.Report and #ns.Report.Unshared() or 0
+	if unshared > 0 then
+		Row("Data to share", unshared .. "  ·  /onecast report", GREEN)
+	end
+
+	tip:AddLine(" ")
+	if isMinimap then
+		Hint("Left-click", "Menu: every window")
+		Hint("Right-click", "Stats window")
+		Hint("Shift-click", "Fishing collection")
+		Hint("Drag", "Move this button")
+	else
+		Hint("Left-click", "Options")
+	end
+end
+
+-- Every OneCast window in one menu, from the minimap button's left-click. Tooltips can't hold
+-- buttons, so this is how the collection and the rest are one click away. OneCast's own small
+-- menu rather than the game's: the game's runs its choices inside a protected call, where
+-- opening a window was failing without a word. This one's buttons are plain buttons.
+local MENU = {
+	{ "Stats window", function() ns.Stats.Toggle() end },
+	{ "Tackle box", function() ns.TackleBox.ToggleWindow() end },
+	{ "Fishing collection", function() ns.Book.Toggle() end },
+	{ "Camp", function() ns.Book.ShowCamp() end },
+	{ "Data report", function() ns.Report.Toggle() end },
+	{ "What's new", function() ns.WhatsNew.Toggle() end },
+	false, -- a divider
+	{ "Options", function() OpenSettings() end },
+}
+local MENU_WIDTH, MENU_ROW, MENU_PAD = 170, 20, 10
+
+local menuFrame
+
+local function CreateMenu()
+	local f = (ns.UI and ns.UI.TryCreate and ns.UI.TryCreate("Frame", "OneCastMenu", UIParent, "TooltipBackdropTemplate"))
+		or CreateFrame("Frame", "OneCastMenu", UIParent, "BackdropTemplate")
+	if not f.NineSlice and f.SetBackdrop then
+		f:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8x8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+			edgeSize = 14, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+		f:SetBackdropColor(0.05, 0.05, 0.05, 0.95)
+	end
+	f:SetFrameStrata("FULLSCREEN_DIALOG")
+	f:SetClampedToScreen(true)
+	f:EnableMouse(true)
+	f:Hide()
+	tinsert(UISpecialFrames, "OneCastMenu") -- Escape closes it
+
+	local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	title:SetPoint("TOPLEFT", MENU_PAD + 2, -MENU_PAD)
+	title:SetText("OneCast")
+	local y = -MENU_PAD - 18
+	f.buttons = {}
+	for _, entry in ipairs(MENU) do
+		if entry then
+			local b = CreateFrame("Button", nil, f)
+			b:SetPoint("TOPLEFT", MENU_PAD - 2, y)
+			b:SetPoint("TOPRIGHT", -MENU_PAD + 2, y)
+			b:SetHeight(MENU_ROW)
+			b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+			b.text = b:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+			b.text:SetPoint("LEFT", 4, 0)
+			b.text:SetText(entry[1])
+			b.label = entry[1]
+			b:SetScript("OnClick", function()
+				f:Hide()
+				PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
+				entry[2]()
+			end)
+			f.buttons[#f.buttons + 1] = b
+			y = y - MENU_ROW
+		else
+			local line = f:CreateTexture(nil, "ARTWORK")
+			line:SetColorTexture(1, 1, 1, 0.15)
+			line:SetHeight(1)
+			line:SetPoint("TOPLEFT", MENU_PAD, y - 5)
+			line:SetPoint("TOPRIGHT", -MENU_PAD, y - 5)
+			y = y - 11
+		end
+	end
+	f:SetSize(MENU_WIDTH, -y + MENU_PAD)
+
+	-- A click anywhere else closes it, as the game's menus do.
+	f:SetScript("OnShow", function(self)
+		self:RegisterEvent("GLOBAL_MOUSE_DOWN")
+	end)
+	f:SetScript("OnHide", function(self)
+		self:UnregisterEvent("GLOBAL_MOUSE_DOWN")
+	end)
+	f:SetScript("OnEvent", function(self)
+		if not self:IsMouseOver() and not (self.owner and self.owner:IsMouseOver()) then
+			self:Hide()
+		end
+	end)
+	return f
+end
+
+local function OpenMenu(owner)
+	menuFrame = menuFrame or CreateMenu()
+	if menuFrame:IsShown() then
+		menuFrame:Hide()
+		return
+	end
+	-- The count of data to share, on its row.
+	local unshared = ns.Report and #ns.Report.Unshared() or 0
+	for _, b in ipairs(menuFrame.buttons) do
+		if b.label == "Data report" then
+			b.text:SetText(unshared > 0 and string.format("Data report |cff1eff00(%d)|r", unshared) or "Data report")
+		end
+	end
+	-- Open away from the screen edge the button is nearest.
+	menuFrame.owner = owner
+	menuFrame:ClearAllPoints()
+	local x, y = owner:GetCenter()
+	local right = x and x > UIParent:GetWidth() / 2
+	local top = y and y > UIParent:GetHeight() / 2
+	menuFrame:SetPoint((top and "TOP" or "BOTTOM") .. (right and "RIGHT" or "LEFT"), owner,
+		(top and "BOTTOM" or "TOP") .. (right and "LEFT" or "RIGHT"))
+	menuFrame:Show()
+end
+ns.OpenMenu = OpenMenu
 
 local function SetupMinimapButton()
 	local b = CreateFrame("Button", "OneCastMinimapButton", Minimap)
@@ -620,7 +832,8 @@ local function SetupMinimapButton()
 		elseif IsShiftKeyDown() then
 			ns.Book.Toggle()
 		else
-			OpenSettings()
+			GameTooltip:Hide()
+			OpenMenu(b)
 		end
 	end)
 
@@ -639,21 +852,7 @@ local function SetupMinimapButton()
 
 	b:SetScript("OnEnter", function(self)
 		GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-		GameTooltip:AddDoubleLine("OneCast", "v" .. ns.VERSION, nil, nil, nil, 0.6, 0.6, 0.6)
-		GameTooltip:AddLine("Cast / reel: " .. BoundKeysText(), 1, 1, 1)
-		GameTooltip:AddLine(ns.Stats.Summary(), 1, 1, 1)
-		local lure = ns.Lure.StatusLine()
-		if lure then
-			GameTooltip:AddLine(lure, 1, 1, 1)
-		end
-		local contest = ns.Extravaganza and ns.Extravaganza.StatusLine(GetRealZoneText())
-		if contest then
-			GameTooltip:AddLine("Fishing Extravaganza: " .. contest, 1, 1, 1)
-		end
-		GameTooltip:AddLine("Left-click: options", 0.8, 0.8, 0.8)
-		GameTooltip:AddLine("Right-click: session stats", 0.8, 0.8, 0.8)
-		GameTooltip:AddLine("Shift-click: fishing collection", 0.8, 0.8, 0.8)
-		GameTooltip:AddLine("Drag: move", 0.8, 0.8, 0.8)
+		ns.FillTooltip(GameTooltip, true)
 		GameTooltip:Show()
 	end)
 	b:SetScript("OnLeave", GameTooltip_Hide)
@@ -666,6 +865,16 @@ end
 -- Addon compartment (the addons dropdown by the minimap), declared in the TOC.
 function OneCast_OnAddonCompartmentClick()
 	OpenSettings()
+end
+
+function OneCast_OnAddonCompartmentEnter(_, menuButtonFrame)
+	GameTooltip:SetOwner(menuButtonFrame or UIParent, "ANCHOR_LEFT")
+	ns.FillTooltip(GameTooltip, false)
+	GameTooltip:Show()
+end
+
+function OneCast_OnAddonCompartmentLeave()
+	GameTooltip:Hide()
 end
 
 -- A secure button's attributes can't change in combat, so this waits until it's over.
@@ -793,6 +1002,12 @@ SlashCmdList.ONECAST = function(msg)
 	elseif cmd == "book" or cmd == "collection" then
 		ns.Book.Toggle()
 		return
+	elseif cmd == "camp" then
+		ns.Book.ShowCamp()
+		return
+	elseif cmd == "report" then
+		ns.Report.Show()
+		return
 	elseif cmd == "new" or cmd == "whatsnew" then
 		ns.WhatsNew.Toggle()
 		return
@@ -835,7 +1050,8 @@ SlashCmdList.ONECAST = function(msg)
 	Print("v" .. ns.VERSION .. " | key: " .. BoundKeysText() .. " | spell: " .. tostring(fishingName))
 	Print("/onecast - open options")
 	Print("/onecast new - what's new in each version")
-	Print("/onecast book - fishing collection")
+	Print("/onecast book - fishing collection (/onecast camp for its Camp tab)")
+	Print("/onecast report - your fishing data as text, to share and help fill in Forever's numbers")
 	Print("/onecast theme [" .. table.concat(ns.Theme.ORDER, "|") .. "] - window colours (no name: the next one)")
 	Print("/onecast tackle - tackle box (/onecast tackle reset moves its button back)")
 	Print("/onecast stats - stats window (or /onecast session|zone|lifetime|log for a tab)")

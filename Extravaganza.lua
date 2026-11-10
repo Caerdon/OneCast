@@ -58,10 +58,7 @@ function X.FormatWait(seconds)
 end
 
 function X.TastyfishInBags()
-	if C_Item.GetItemCount then
-		return C_Item.GetItemCount(X.TASTYFISH) or 0
-	end
-	return GetItemCount and GetItemCount(X.TASTYFISH) or 0
+	return ns.ItemCount(X.TASTYFISH)
 end
 
 -- One line for the stats window, or nil when the contest isn't worth mentioning: shown
@@ -72,7 +69,7 @@ function X.StatusLine(zone)
 		return nil
 	end
 	if running then
-		return string.format("Tastyfish %d/%d  |cff9d9d9d%s left|r", X.TastyfishInBags(), X.GOAL, X.FormatWait(seconds))
+		return string.format("Tastyfish %d/%d  ·  |cff9d9d9d%s left|r", X.TastyfishInBags(), X.GOAL, X.FormatWait(seconds))
 	end
 	if zone == X.ZONE or seconds <= 3 * 3600 then
 		return "starts in " .. X.FormatWait(seconds)
@@ -93,13 +90,18 @@ end
 
 -- The moment you hold 40 Tastyfish during the contest, say where to go. Checked when the
 -- bags change rather than at the catch, since the fish isn't in the bags until it's looted.
+-- Speckled Tastyfish as a chat link, or its name until the game has the item.
+local function Tastyfish()
+	return ns.ItemLink(X.TASTYFISH, "Speckled Tastyfish")
+end
+
 local announcedGoal = false
 local function CheckGoal()
 	if announcedGoal or not (ns.db and ns.db.extravaganza) or not X.Status() or X.TastyfishInBags() < X.GOAL then
 		return
 	end
 	announcedGoal = true
-	ns.Print(string.format("%d Speckled Tastyfish! Hand them to Riggle Bassbait in Booty Bay to win.", X.GOAL))
+	ns.Print(string.format("%d %s! Hand them to Riggle Bassbait in Booty Bay to win.", X.GOAL, Tastyfish()))
 	if RaidNotice_AddMessage and RaidWarningFrame then
 		RaidNotice_AddMessage(RaidWarningFrame, X.GOAL .. " Tastyfish: hurry to Booty Bay!", ChatTypeInfo.RAID_WARNING)
 	end
@@ -132,8 +134,8 @@ local function Tick()
 		return
 	end
 	if running and not wasRunning then
-		ns.Print(string.format("the Stranglethorn Fishing Extravaganza is on%s! Catch %d Speckled Tastyfish in Stranglethorn Vale and hand them to Riggle Bassbait in Booty Bay.",
-			wasRunning == nil and (" (" .. X.FormatWait(seconds) .. " left)") or "", X.GOAL))
+		ns.Print(string.format("the Stranglethorn Fishing Extravaganza is on%s! Catch %d %s in Stranglethorn Vale and hand them to Riggle Bassbait in Booty Bay.",
+			wasRunning == nil and (" (" .. X.FormatWait(seconds) .. " left)") or "", X.GOAL, Tastyfish()))
 	elseif not running and seconds <= REMIND_BEFORE and not remindedSoon then
 		remindedSoon = true
 		ns.Print("the Stranglethorn Fishing Extravaganza starts in " .. X.FormatWait(seconds) .. ".")

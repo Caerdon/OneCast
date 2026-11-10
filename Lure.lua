@@ -86,13 +86,17 @@ function Lure.Name(lure)
 	return C_Item.GetItemNameByID(lure.id) or lure.name
 end
 
+-- The lure as a chat link, to hover or Shift-click, or its name until the game has the item.
+function Lure.ChatName(lure)
+	return ns.ItemLink(lure.id, Lure.Name(lure))
+end
+
 function Lure.Icon(lure)
 	return C_Item.GetItemIconByID(lure.id) or "Interface\\Icons\\INV_Misc_QuestionMark"
 end
 
 function Lure.Count(lure)
-	local count = (C_Item.GetItemCount or GetItemCount)(lure.id)
-	return count or 0
+	return ns.ItemCount(lure.id)
 end
 
 -- True if this character's Fishing is high enough, or can't be read (the game will say).
@@ -233,7 +237,7 @@ local function NoteFailure(lure)
 	if failures >= MAX_FAILURES then
 		failures = 0
 		holdUntil = GetTime() + RETRY_AFTER
-		ns.Print(string.format("couldn't put %s on, so the cast key will just cast for a minute.", Lure.Name(lure)))
+		ns.Print(string.format("couldn't put %s on, so the cast key will just cast for a minute.", Lure.ChatName(lure)))
 	end
 	Changed()
 end
@@ -364,21 +368,26 @@ function Lure.Clock(seconds)
 	return string.format("%d:%02d", math.floor(seconds / 60), seconds % 60)
 end
 
--- One line for the minimap tooltip, or nil if this character doesn't use lures.
+-- The lure for the minimap tooltip, and true if it's a problem (none left, skill too low).
+-- Nil if this character doesn't use lures.
 function Lure.StatusLine()
 	local left = Lure.Left()
 	if left > 0 then
 		local shown = Lure.Shown()
-		return string.format("Lure: %s, %s left", shown and Lure.Name(shown) or "on", Lure.Clock(left))
+		return string.format("%s  ·  %s left", shown and Lure.Name(shown) or "On", Lure.Clock(left))
 	end
 	if Lure.Choice() == Lure.NONE then
 		return nil
 	end
 	local lure, reason, about = Lure.Selected()
 	if lure then
-		return string.format("Lure: %s ready (x%d)", Lure.Name(lure), Lure.Count(lure))
+		return string.format("%s ready (x%d)", Lure.Name(lure), Lure.Count(lure))
+	elseif reason == "out" then
+		return Lure.Name(about) .. ": none left", true
+	elseif reason == "skill" then
+		return string.format("%s needs %d", Lure.Name(about), about.req), true
 	end
-	return "Lure: " .. Lure.ReasonText(reason, about)
+	return "none usable in your bags", true
 end
 
 -- Selling your lure and you're running low? Say so; buying stays up to you.
@@ -405,7 +414,7 @@ local function CheckVendor()
 		end
 	end
 	if target and Lure.Count(target) < LOW_COUNT then
-		ns.Print(string.format("this vendor sells %s, and you have %d.", Lure.Name(target), Lure.Count(target)))
+		ns.Print(string.format("this vendor sells %s, and you have %d.", Lure.ChatName(target), Lure.Count(target)))
 	end
 end
 
@@ -462,7 +471,7 @@ events:SetScript("OnEvent", function(_, event, ...)
 		local lure = LureForSpell(spellID)
 		if lure then
 			if not casting then
-				ns.Print(string.format("applying %s (+%d). Press again to cast once it's on.", Lure.Name(lure), lure.bonus))
+				ns.Print(string.format("applying %s (+%d). Press again to cast once it's on.", Lure.ChatName(lure), lure.bonus))
 			end
 			armed = nil
 			casting, castingAt = lure, GetTime()

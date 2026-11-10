@@ -6,7 +6,7 @@
 -- fishing level against your skill, and clicking one filters the grid to it. Catch data comes
 -- from Collection.lua and is shared by all your characters.
 
-local ADDON, ns = ...
+local _, ns = ...
 
 local Book = {}
 ns.Book = Book
@@ -29,6 +29,7 @@ local CATEGORIES = {
 	{ key = "trophy", label = "Trophies" },
 	{ key = "bloated", label = "Bloated" },
 	{ key = "zones", label = "Zones" },
+	{ key = "camp", label = "Camp" },
 }
 local CAT_ORDER = { fish = 1, special = 2, trophy = 3, bloated = 4 }
 -- FishData's `when`: fish that bite only at some hours in Classic.
@@ -361,10 +362,41 @@ local function PoolDot(box, n, size, r, g, b, sublevel)
 	return tex
 end
 
+-- An invisible button over a pool's dot: what it is, when you were last there, and a click
+-- for the world map with a waypoint on it.
+local function PoolHotspot(box, n, mapID, pool)
+	box.poolButtons = box.poolButtons or {}
+	local b = box.poolButtons[n]
+	if not b then
+		b = CreateFrame("Button", nil, box)
+		b:SetSize(POOL_DOT + 6, POOL_DOT + 6)
+		b:SetFrameLevel((box:GetFrameLevel() or 0) + 2)
+		box.poolButtons[n] = b
+	end
+	b:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText(pool.name)
+		GameTooltip:AddLine("A fishing pool you found here" .. (pool.seen and (", last on "
+			.. date("%d %B", pool.seen)) or "") .. ". Pools move, so it may not be there now.", 1, 1, 1, true)
+		GameTooltip:AddLine(" ")
+		GameTooltip:AddLine("Click: show on the map, with a waypoint", 0.6, 0.8, 1)
+		GameTooltip:Show()
+	end)
+	b:SetScript("OnLeave", GameTooltip_Hide)
+	b:SetScript("OnClick", function()
+		ns.UI.ShowOnMap(mapID, pool.x, pool.y, pool.name)
+	end)
+	b:Show()
+	return b
+end
+
 local function DrawPools(box, mapID, width, height, offX, offY)
 	local n = 0
-	for _, pool in ipairs(ns.Pools.ForMap(mapID)) do
+	for i, pool in ipairs(ns.Pools.ForMap(mapID)) do
 		local x, y = offX + pool.x * width, -(offY + pool.y * height)
+		local hot = PoolHotspot(box, i, mapID, pool)
+		hot:ClearAllPoints()
+		hot:SetPoint("CENTER", box, "TOPLEFT", x, y)
 		n = n + 1
 		local edge = PoolDot(box, n, POOL_DOT + 2, 0, 0, 0, 1)
 		edge:ClearAllPoints()
@@ -378,7 +410,7 @@ end
 
 -- Draw a zone's map art, scaled to fit the box. Returns the map ID, or nil if none.
 local function DrawMap(box, zone)
-	for _, list in ipairs({ box.tiles, box.overlays, box.poolDots }) do
+	for _, list in ipairs({ box.tiles, box.overlays, box.poolDots, box.poolButtons or {} }) do
 		for _, tex in ipairs(list) do
 			tex:Hide()
 		end
@@ -415,18 +447,17 @@ local function DrawMap(box, zone)
 	return mapID
 end
 
-local function OpenZoneMap(mapID)
+local function OpenZoneMap(mapID, x, y, label)
+	return ns.UI.ShowOnMap(mapID, x, y, label)
+end
+
+local function OpenZoneByName(zone)
+	local mapID = zone and ZoneMapID(zone)
 	if not mapID then
-		return
+		ns.Print("the game has no map for " .. (zone or "that zone") .. ".")
+		return false
 	end
-	if InCombatLockdown() then
-		ns.Print("the map can't be opened from here in combat.")
-	elseif OpenWorldMap then
-		OpenWorldMap(mapID)
-	elseif WorldMapFrame then
-		ShowUIPanel(WorldMapFrame)
-		WorldMapFrame:SetMapID(mapID)
-	end
+	return OpenZoneMap(mapID)
 end
 
 -- Page text pool -------------------------------------------------------------------------
@@ -483,6 +514,7 @@ local function PoolButton(pool)
 	local b = pool.buttons[pool.b]
 	if not b then
 		b = CreateFrame("Button", nil, pool.page)
+		b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 		b:SetHeight(18)
 		b.bg = b:CreateTexture(nil, "BACKGROUND")
 		b.bg:SetAllPoints()
@@ -499,8 +531,73 @@ local function PoolButton(pool)
 		pool.buttons[pool.b] = b
 	end
 	b:ClearAllPoints()
+	b:SetHeight(18)
+	b.bg:Show()
+	for _, script in ipairs({ "OnClick", "OnEnter", "OnLeave" }) do
+		b:SetScript(script, nil)
+	end
 	b:Show()
 	return b
+end
+
+-- An invisible button over part of a page: hovering shows a tooltip `fill` writes, and a
+-- Shift-click links what `link` returns in chat. Text underneath shows through.
+local function Hover(pool, x, y, width, height, fill, link)
+	local b = PoolButton(pool)
+	b:SetPoint("TOPLEFT", pool.page, "TOPLEFT", x - 3, -y + 2)
+	b:SetSize(width + 6, height)
+	b.bg:Hide()
+	b.left:SetText("")
+	b.right:SetText("")
+	b:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		fill(GameTooltip)
+		if link then
+			GameTooltip:AddLine("Shift-click to link it in chat", 0.6, 0.8, 1)
+		end
+		GameTooltip:Show()
+	end)
+	b:SetScript("OnLeave", GameTooltip_Hide)
+	b:SetScript("OnClick", function()
+		local text = link and IsModifiedClick("CHATLINK") and link()
+		if text then
+			ChatEdit_InsertLink(text)
+		end
+	end)
+	return b
+end
+
+local function ItemLink(itemID)
+	return function()
+		return ns.ItemLink(itemID)
+	end
+end
+
+local function SpellLink(spellID)
+	return function()
+		return C_Spell and C_Spell.GetSpellLink and C_Spell.GetSpellLink(spellID)
+	end
+end
+
+-- Pieces of text that wrap like one sentence, each with its own tooltip:
+-- { text, fill = function(tip), link = function() }, separated by `sep`. Returns the y below.
+local function Flow(pool, pieces, x, y, width, size, color, sep)
+	local lineHeight = size + 4
+	local cx = 0
+	for i, piece in ipairs(pieces) do
+		local fs = PoolString(pool, QuestFont, size, color)
+		fs:SetText(piece.text .. (i < #pieces and (sep or ", ") or ""))
+		local w = fs:GetStringWidth() or 0
+		if cx > 0 and cx + w > width then
+			cx, y = 0, y + lineHeight
+		end
+		fs:SetPoint("TOPLEFT", pool.page, "TOPLEFT", x + cx, -y)
+		if piece.fill then
+			Hover(pool, x + cx, y, w, lineHeight, piece.fill, piece.link)
+		end
+		cx = cx + w
+	end
+	return y + lineHeight
 end
 
 -- Heading with a rule running to the page edge; returns its height.
@@ -687,6 +784,9 @@ local function RenderLeft(fish, info)
 	local skill = EasiestSkill(fish)
 	kind:SetText((CAT_NAME[fish.cat] or "Catch") .. (skill and ("  ·  " .. skill .. " Fishing") or ""))
 	kind:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -4)
+	Hover(pool, x, 30, width, 56, function(tip)
+		tip:SetItemByID(fish.id)
+	end, ItemLink(fish.id))
 
 	local y = 30 + 56 + 18
 	local function Paragraph(text, color, gap)
@@ -766,10 +866,24 @@ local function RenderRight(fish, info)
 		end
 		b.right:SetText(table.concat(right, "  ·  "))
 		b.right:SetTextColor(INK_SOFT[1], INK_SOFT[2], INK_SOFT[3])
-		b:SetScript("OnClick", function()
+		b:SetScript("OnClick", function(_, mouseButton)
+			if mouseButton == "RightButton" then
+				OpenZoneByName(row.zone)
+				return
+			end
 			state.zone = row.zone
 			Book.Refresh()
 		end)
+		b:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetText(row.zone)
+			GameTooltip:AddLine(ns.Stats.ZoneVerdict(row.zone), 1, 1, 1, true)
+			GameTooltip:AddLine(" ")
+			GameTooltip:AddLine("Click: show it on the map below", 0.6, 0.8, 1)
+			GameTooltip:AddLine("Right-click: open the world map", 0.6, 0.8, 1)
+			GameTooltip:Show()
+		end)
+		b:SetScript("OnLeave", GameTooltip_Hide)
 		y = y + 19
 	end
 	if #rows == 0 then
@@ -810,6 +924,12 @@ local function RenderRight(fish, info)
 		local skill = recipe[4] and (" " .. recipe[4]) or ""
 		line:SetText(string.format("%s  %s%s%s|r", recipe[2], SOFT, recipe[3], skill))
 		line:SetPoint("TOPLEFT", page, "TOPLEFT", x + 18, -y)
+		Hover(pool, x + 18, y, line:GetStringWidth() or width, 17, function(tip)
+			tip:SetSpellByID(recipe[1])
+			if recipe[4] then
+				tip:AddLine(string.format("Needs %d %s.", recipe[4], recipe[3]), 1, 0.82, 0)
+			end
+		end, SpellLink(recipe[1]))
 		y = y + 17
 	end
 	if #recipes == 0 then
@@ -952,7 +1072,7 @@ local function ZoneStatusText(status)
 	end
 end
 
-local function RenderZoneRow(pool, zone, count, here, x, y, width)
+local function RenderZoneRow(pool, zone, count, here, x, y, width, news)
 	local b = PoolButton(pool)
 	b:SetPoint("TOPLEFT", pool.page, "TOPLEFT", x, -y)
 	b:SetWidth(width)
@@ -964,9 +1084,16 @@ local function RenderZoneRow(pool, zone, count, here, x, y, width)
 		right[#right + 1] = SOFT .. count.caught .. "/" .. count.total .. " fish|r"
 	end
 	right[#right + 1] = ZoneStatusText(ns.Stats.ZoneStatus(zone))
+	if news then
+		right[#right + 1] = GOOD .. "new data|r"
+	end
 	b.right:SetText(table.concat(right, "  ·  "))
 	b.right:SetTextColor(INK_SOFT[1], INK_SOFT[2], INK_SOFT[3])
-	b:SetScript("OnClick", function()
+	b:SetScript("OnClick", function(_, mouseButton)
+		if mouseButton == "RightButton" then
+			OpenZoneByName(zone)
+			return
+		end
 		PlaySound(SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON)
 		Book.ShowZoneFish(zone)
 	end)
@@ -980,7 +1107,16 @@ local function RenderZoneRow(pool, zone, count, here, x, y, width)
 		else
 			GameTooltip:AddLine("No fish known here yet.", 0.7, 0.7, 0.7, true)
 		end
-		GameTooltip:AddLine("Click to see its fish", 0.6, 0.8, 1)
+		if news then
+			GameTooltip:AddLine(" ")
+			GameTooltip:AddLine("New to OneCast:", 0.12, 1, 0)
+			for _, f in ipairs(news) do
+				GameTooltip:AddLine(f.text, 1, 1, 1, true)
+			end
+			GameTooltip:AddLine("Share your data at the bottom of the book.", 0.6, 0.8, 1, true)
+		end
+		GameTooltip:AddLine("Click: see its fish", 0.6, 0.8, 1)
+		GameTooltip:AddLine("Right-click: open the world map", 0.6, 0.8, 1)
 		GameTooltip:Show()
 	end)
 	b:SetScript("OnLeave", GameTooltip_Hide)
@@ -992,7 +1128,8 @@ local function RenderZones()
 	local counts = ZoneCounts(groups)
 	local spreads = math.max(1, math.ceil(#pages / 2))
 	state.spread = math.min(state.spread, spreads)
-	local here = GetRealZoneText()
+	local here = ns.Stats.CurrentZone()
+	local news = ns.Report and ns.Report.UnsharedByZone() or {}
 	for p, page in ipairs(frame.pages) do
 		local pool = frame.zonePools[p]
 		ResetPool(pool)
@@ -1011,7 +1148,7 @@ local function RenderZones()
 				Heading(pool, entry.heading, x, y + 6, 32)
 				y = y + ZONE_HEADING
 			else
-				RenderZoneRow(pool, entry.zone, counts[entry.zone], here, x, y, width)
+				RenderZoneRow(pool, entry.zone, counts[entry.zone], here, x, y, width, news[entry.zone])
 				y = y + ZONE_ROW
 			end
 		end
@@ -1024,6 +1161,179 @@ local function RenderZones()
 	frame.pageLabel:SetText(string.format("Pages %d-%d of %d", state.spread * 2 - 1, state.spread * 2, spreads * 2))
 	frame.prev:SetEnabled(state.spread > 1)
 	frame.next:SetEnabled(state.spread < spreads)
+end
+
+-- Camp -----------------------------------------------------------------------------------
+-- Forever's fishing crafts for its camps (Camp.lua): what each needs and does on the left,
+-- how camps work and what this character has caught under their buffs on the right.
+
+local CAMP_TOP = 50
+
+local function CampText(pool, text, x, y, width, size, color)
+	local fs = PoolString(pool, QuestFont, size or 13, color or INK)
+	fs:SetWidth(width)
+	fs:SetText(text)
+	fs:SetPoint("TOPLEFT", pool.page, "TOPLEFT", x, -y)
+	return y + fs:GetStringHeight() + 4
+end
+
+-- An item's own tooltip, then `extra` lines, over part of the page; Shift-click links it.
+local function ItemHover(pool, itemID, extra, x, y, width, height)
+	return Hover(pool, x, y, width, height, function(tip)
+		tip:SetItemByID(itemID)
+		if extra then
+			extra(tip)
+		end
+	end, ItemLink(itemID))
+end
+
+local function RenderCraft(pool, craft, x, y, width)
+	local Camp = ns.Camp
+	local icon = PoolTexture(pool)
+	icon:SetTexture(C_Item.GetItemIconByID(craft.item) or "Interface\\Icons\\INV_Misc_QuestionMark")
+	icon:SetSize(34, 34)
+	icon:SetPoint("TOPLEFT", pool.page, "TOPLEFT", x, -y)
+	local name = PoolString(pool, QuestTitleFont, 16, INK)
+	name:SetText(craft.name)
+	name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -1)
+	local rank = ns.Stats.FishingSkill()
+	local parts = { (rank and rank < craft.skill and BAD or SOFT) .. "Needs " .. craft.skill .. " Fishing|r" }
+	local known = Camp.Known(craft)
+	if known then
+		parts[#parts + 1] = GOOD .. "learned|r"
+	elseif known == false then
+		if craft.blueprint and Camp.Count(craft.blueprint) > 0 then
+			parts[#parts + 1] = GOOD .. "Blueprint in your bags: open it to learn|r"
+		else
+			parts[#parts + 1] = SOFT .. "not learned yet|r"
+		end
+	end
+	local made = Camp.Count(craft.item)
+	if made > 0 then
+		parts[#parts + 1] = SOFT .. made .. " in your bags|r"
+	end
+	local status = PoolString(pool, QuestFont, 12, INK_SOFT)
+	status:SetText(table.concat(parts, "  ·  "))
+	status:SetPoint("TOPLEFT", name, "BOTTOMLEFT", 0, -3)
+	ItemHover(pool, craft.item, function(tip)
+		tip:AddLine(" ")
+		if known then
+			tip:AddLine("You've learned to make it.", 0.12, 1, 0)
+		elseif known == false then
+			tip:AddLine("You haven't learned to make it yet.", 1, 0.3, 0.3)
+			if craft.blueprintFrom then
+				tip:AddLine(craft.blueprintName .. ": " .. craft.blueprintFrom, 1, 1, 1, true)
+			end
+		end
+		if made > 0 then
+			tip:AddLine(string.format("You have %d.", made), 1, 1, 1)
+		end
+	end, x, y, width, 38)
+	y = y + 40
+	local pieces = { { text = "Makes from: " } }
+	for i, r in ipairs(craft.reagents) do
+		local have = Camp.Count(r[1])
+		pieces[#pieces + 1] = {
+			text = (have >= r[2] and GOOD or BAD) .. math.min(have, r[2]) .. "/" .. r[2] .. "|r " .. Camp.ItemName(r[1], r[3])
+				.. (i < #craft.reagents and ", " or ""),
+			fill = function(tip)
+				tip:SetItemByID(r[1])
+				tip:AddLine(string.format("You have %d, and it takes %d.", have, r[2]), 1, 1, 1)
+			end,
+			link = ItemLink(r[1]),
+		}
+	end
+	y = Flow(pool, pieces, x, y, width, 12, INK, "") + 2
+	-- Where to get the Blueprint, until it's learned or in the bags.
+	if craft.blueprintFrom and known ~= true and Camp.Count(craft.blueprint) == 0 then
+		local top = y
+		y = CampText(pool, LEAD .. "Blueprint:|r " .. craft.blueprintFrom, x, y, width, 12)
+		ItemHover(pool, craft.blueprint, nil, x, top, width, y - top)
+	end
+	y = CampText(pool, craft.does, x, y, width, 12, INK_SOFT)
+	return y + 10
+end
+
+local function RenderCamp()
+	local Camp = ns.Camp
+	for p in ipairs(frame.pages) do
+		ResetPool(frame.campPools[p])
+	end
+	local left, right = frame.campPools[1], frame.campPools[2]
+	local x = 32
+	local width = math.max(left.page:GetWidth(), 400) - 64
+
+	local y = CAMP_TOP
+	for _, craft in ipairs(Camp.CRAFTS) do
+		y = RenderCraft(left, craft, x, y, width)
+	end
+
+	y = CAMP_TOP
+	y = y + Heading(right, "How camps work", x, y, 32)
+	y = CampText(right, string.format("Build a campfire with Cooking, then place up to its limit of features beside it. "
+		.. "Sit nearby for %d seconds and each feature's benefit lasts an hour. Features stand %d minutes, and all of "
+		.. "them share a %d-minute cooldown.", Camp.SIT_SECONDS, Camp.FEATURE_MINUTES, Camp.COOLDOWN_MINUTES), x, y, width, 12)
+	local fires = {}
+	for i, fire in ipairs(Camp.CAMPFIRES) do
+		fires[i] = {
+			text = string.format("%s holds %d", fire.name, fire.holds) .. (i < #Camp.CAMPFIRES and ", " or "."),
+			fill = function(tip)
+				tip:SetSpellByID(fire.recipe)
+				tip:AddLine(string.format("A Cooking recipe. Holds up to %d camp features.", fire.holds), 1, 1, 1, true)
+			end,
+			link = SpellLink(fire.recipe),
+		}
+	end
+	y = Flow(right, fires, x, y, width, 12, INK_SOFT, "") + 8
+
+	y = y + Heading(right, "Right now", x, y, 32)
+	local craft, left_ = Camp.ActiveBuff()
+	if craft then
+		local top = y
+		y = CampText(right, string.format("%s%s|r is on%s, from a %s.", GOOD, craft.buffName,
+			left_ and string.format(" for %d more minutes", math.ceil(left_ / 60)) or "", craft.name), x, y, width)
+		Hover(right, x, top, width, y - top, function(tip)
+			tip:SetSpellByID(craft.buff)
+		end, SpellLink(craft.buff))
+	else
+		y = CampText(right, "No camp fishing buff on. Sit by a campfire with a Fishing Rack or Fishing Hut to get one.",
+			x, y, width, 13, INK_SOFT)
+	end
+	y = y + 8
+
+	y = y + Heading(right, "Caught with the buffs", x, y, 32)
+	local any = false
+	for _, c in ipairs(Camp.CRAFTS) do
+		local r = c.buff and Camp.Record(c.key)
+		if r and r.catches > 0 then
+			any = true
+			local items = {}
+			for id, n in pairs(r.items) do
+				items[#items + 1] = { id = id, n = n }
+			end
+			table.sort(items, function(a, b)
+				return a.n > b.n
+			end)
+			local top = {}
+			for i = 1, math.min(#items, 5) do
+				top[i] = string.format("%s x%d", C_Item.GetItemNameByID(items[i].id) or ("item " .. items[i].id), items[i].n)
+			end
+			y = CampText(right, string.format("%s%s|r: %d catch%s. %s", LEAD, c.buffName, r.catches,
+				r.catches == 1 and "" or "es", table.concat(top, ", ")), x, y, width, 12)
+		end
+	end
+	if not any then
+		y = CampText(right, "Nothing yet. Catches made with Uncommon or Rare Fishing on are kept here, to show what "
+			.. "their extra rewards really are: the game doesn't say. /onecast report shares them.", x, y, width, 12, INK_SOFT)
+	end
+
+	frame.pages[1].title:SetText("Fishing at camp")
+	frame.pages[2].title:SetText("Your camp")
+	frame.pages[1].number:SetText(1)
+	frame.pages[2].number:SetText(2)
+	frame.pageLabel:SetText("")
+	frame.prev:SetEnabled(false)
+	frame.next:SetEnabled(false)
 end
 
 -- Window ---------------------------------------------------------------------------------
@@ -1063,6 +1373,8 @@ local function CreatePage(parent)
 	page.detail:SetAllPoints()
 	page.zones = CreateFrame("Frame", nil, page)
 	page.zones:SetAllPoints()
+	page.camp = CreateFrame("Frame", nil, page)
+	page.camp:SetAllPoints()
 	return page
 end
 
@@ -1091,7 +1403,7 @@ local function CreateWindow()
 	f:EnableMouse(true)
 	f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving)
-	f:SetScript("OnDragStop", f.StopMovingOrSizing)
+	ns.UI.RememberPosition(f, "book")
 	tinsert(UISpecialFrames, f:GetName())
 	ns.UI.KeepOpenThroughOptions(f:GetName())
 
@@ -1160,6 +1472,7 @@ local function CreateWindow()
 	f.leftPool = NewPool(f.pages[1].detail)
 	f.rightPool = NewPool(f.pages[2].detail)
 	f.zonePools = { NewPool(f.pages[1].zones), NewPool(f.pages[2].zones) }
+	f.campPools = { NewPool(f.pages[1].camp), NewPool(f.pages[2].camp) }
 
 	f.empty = f.pages[1].grid:CreateFontString(nil, "OVERLAY")
 	SizedFont(f.empty, QuestFont, 15)
@@ -1182,6 +1495,26 @@ local function CreateWindow()
 	f.map.empty:SetShadowOffset(0, 0)
 	f.map.empty:SetPoint("CENTER")
 	f.map.empty:SetText("No map for this zone.")
+	-- The little map opens the world map; its pool dots have their own tooltips over it.
+	f.map:EnableMouse(true)
+	f.map:SetScript("OnMouseUp", function(_, mouseButton)
+		if mouseButton == "LeftButton" then
+			OpenZoneMap(frame.mapID)
+		end
+	end)
+	f.map:SetScript("OnEnter", function(self)
+		if not frame.mapID then
+			return
+		end
+		GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+		GameTooltip:SetText(state.zone or "")
+		GameTooltip:AddLine("Click: open the world map", 0.6, 0.8, 1)
+		if #ns.Pools.ForMap(frame.mapID) > 0 then
+			GameTooltip:AddLine("Blue dots are pools you've found: hover or click one.", 1, 1, 1, true)
+		end
+		GameTooltip:Show()
+	end)
+	f.map:SetScript("OnLeave", GameTooltip_Hide)
 	f.mapCaption = f.pages[2].detail:CreateFontString(nil, "OVERLAY")
 	SizedFont(f.mapCaption, QuestFont, 13)
 	Ink(f.mapCaption, INK_SOFT)
@@ -1215,6 +1548,21 @@ local function CreateWindow()
 		end
 		Book.Refresh()
 	end)
+	-- On the Zones and Camp tabs, where the fish filters aren't: share your data.
+	f.share = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+	ns.Theme.Register(f.share, "button")
+	f.share:SetSize(170, 22)
+	f.share:SetPoint("BOTTOMLEFT", 10, 4)
+	f.share:SetScript("OnClick", function()
+		ns.Report.Show()
+	end)
+	f.share:SetScript("OnEnter", function(self)
+		GameTooltip:SetOwner(self, "ANCHOR_TOP")
+		GameTooltip:SetText("Data report")
+		GameTooltip:AddLine(ns.Report.TooltipLine() or "Your catches and getaways as text, to share.", 1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	f.share:SetScript("OnLeave", GameTooltip_Hide)
 	-- Zone filter: a menu of every zone, with this one first ("what's left here?").
 	f.where = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
 	ns.Theme.Register(f.where, "button")
@@ -1315,23 +1663,35 @@ function Book.Refresh()
 	end
 	local showFish = state.fishID ~= nil and RenderFish()
 	local showZones = not showFish and state.cat == "zones"
+	local showCamp = not showFish and state.cat == "camp"
+	local showGrid = not showFish and not showZones and not showCamp
 	if showZones then
 		RenderZones()
-	elseif not showFish then
+	elseif showCamp then
+		RenderCamp()
+	elseif showGrid then
 		RenderGrid()
 	end
 	for _, page in ipairs(frame.pages) do
-		page.grid:SetShown(not showFish and not showZones)
+		page.grid:SetShown(showGrid)
 		page.detail:SetShown(showFish)
 		page.zones:SetShown(showZones)
+		page.camp:SetShown(showCamp)
 		page.title:SetShown(not showFish)
 		page.number:SetShown(not showFish)
 	end
-	frame.back:SetShown(not showZones)
+	frame.back:SetShown(not showZones and not showCamp)
 	frame.back:SetText(showFish and "Back to collection" or SHOW_LABEL[state.show])
-	frame.where:SetShown(not showFish and not showZones)
+	frame.where:SetShown(showGrid)
 	frame.where:SetText(state.where or "All zones")
-	frame.search:SetShown(not showFish and not showZones)
+	frame.search:SetShown(showGrid)
+	frame.prev:SetShown(not showCamp)
+	frame.next:SetShown(not showCamp)
+	frame.share:SetShown(showZones or showCamp)
+	if showZones or showCamp then
+		local n = ns.Report and #ns.Report.Unshared() or 0
+		frame.share:SetText("Share your data" .. (n > 0 and (" |cff1eff00(" .. n .. ")|r") or ""))
+	end
 end
 
 local function SetWhere(zone)
@@ -1346,7 +1706,7 @@ function Book.ShowZoneFish(zone)
 end
 
 function Book.OpenZoneMenu(owner)
-	local here = GetRealZoneText()
+	local here = ns.Stats.CurrentZone()
 	here = here ~= "" and here or nil
 	if not (MenuUtil and MenuUtil.CreateContextMenu) then
 		-- No menu API: switch between every zone and this one.
@@ -1375,6 +1735,22 @@ function Book.OpenZoneMenu(owner)
 		end
 	end)
 end
+
+-- The Camp tab, from anywhere: /onecast camp.
+function Book.ShowCamp()
+	Book.Show()
+	state.cat, state.fishID, state.spread = "camp", nil, 1
+	Book.Refresh()
+end
+
+-- Bags or recipes changed: only the Camp tab shows those.
+function Book.RefreshCampIfShown()
+	if frame and frame:IsShown() and state.cat == "camp" and not state.fishID then
+		Book.Refresh()
+	end
+end
+
+Book.ZoneMapID = ZoneMapID
 
 function Book.RefreshIfShown()
 	if frame and frame:IsShown() then

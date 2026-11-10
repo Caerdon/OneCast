@@ -59,9 +59,28 @@ local function Session()
 	return charDB.session
 end
 
+-- The dungeon you're in, by its map ID, under the name the zone tables use (ns.INSTANCE_ZONES).
+local function InstanceZone()
+	if not (GetInstanceInfo and ns.INSTANCE_ZONES) then
+		return nil
+	end
+	local _, instanceType, _, _, _, _, _, mapID = GetInstanceInfo()
+	if instanceType and instanceType ~= "none" and mapID then
+		return ns.INSTANCE_ZONES[mapID]
+	end
+end
+
 -- Empty while the zone is still loading; never key stats under "".
 local function CurrentZone()
 	local zone = GetRealZoneText()
+	local dungeon = InstanceZone()
+	if dungeon then
+		-- Stats kept under the game's own name for it before 0.7.0 move across once.
+		if charDB and zone and zone ~= dungeon and charDB.zoneStats[zone] and not charDB.zoneStats[dungeon] then
+			charDB.zoneStats[dungeon], charDB.zoneStats[zone] = charDB.zoneStats[zone], nil
+		end
+		return dungeon
+	end
 	if not zone or zone == "" then
 		return UNKNOWN or "Unknown"
 	end
@@ -187,6 +206,21 @@ local function CatchesPerPoint(rank)
 	end
 	return math.ceil((rank - 75) / 25) + 1
 end
+
+-- Effective skill (lure and pole included) in steps of 25, for the record of what happened at
+-- which skill in each zone: { [bucket] = count } under totals.skillCatches and .skillGetaways.
+-- Kept for good (a clean run doesn't clear it), as evidence of a zone's real level.
+local SKILL_STEP = 25
+local function CountAtSkill(totals, key)
+	local rank, _, modifier = FishingSkill()
+	if not rank then
+		return
+	end
+	local bucket = math.floor((rank + modifier) / SKILL_STEP) * SKILL_STEP
+	totals[key] = totals[key] or {}
+	totals[key][bucket] = (totals[key][bucket] or 0) + 1
+end
+Stats.SKILL_STEP = SKILL_STEP
 
 -- Notice skill-ups: the catch count toward the next point starts again at each one.
 local function CheckSkill()
@@ -384,6 +418,22 @@ function Stats.OnCast()
 	castSpot = CurrentSpot(castZone)
 	local zoneTotals = ZoneTotals(castZone)
 	local spotTotals = SpotTotals(zoneTotals, castSpot)
+	-- Where in the spot you fish from, averaged over your casts (up to the last 50), so the spot
+	-- can be shown on the map with a waypoint.
+	local mapID, px, py
+	if ns.Pools and ns.Pools.ZonePosition then
+		mapID, px, py = ns.Pools.ZonePosition()
+	end
+	if mapID then
+		if spotTotals.mapID ~= mapID or not spotTotals.x then
+			spotTotals.mapID, spotTotals.x, spotTotals.y, spotTotals.fixes = mapID, px, py, 1
+		else
+			local n = math.min((spotTotals.fixes or 1) + 1, 50)
+			spotTotals.x = spotTotals.x + (px - spotTotals.x) / n
+			spotTotals.y = spotTotals.y + (py - spotTotals.y) / n
+			spotTotals.fixes = n
+		end
+	end
 	if s.lastCast and now - s.lastCast <= ACTIVE_GAP then
 		local gap = now - s.lastCast
 		s.activeTime = s.activeTime + gap
@@ -448,7 +498,11 @@ local function OnLootReady(autoLooted)
 	AddCatch(ZoneTotals(zone), zone, loot)
 	local zoneTotals = ZoneTotals(zone)
 	zoneTotals.cleanCatches = (zoneTotals.cleanCatches or 0) + 1
+	CountAtSkill(zoneTotals, "skillCatches")
 	AddToLog(zone, loot)
+	if ns.Camp then
+		ns.Camp.OnCatch(zone, loot)
+	end
 
 	-- The spot the line went out at, and the realm hour, for each item.
 	local spot = SpotTotals(ZoneTotals(zone), zone == castZone and castSpot or CurrentSpot(zone))
@@ -474,7 +528,76 @@ local function OnLootReady(autoLooted)
 	end
 	AlertIfRare(loot)
 	OfferAutoLoot(autoLooted)
+	if ns.Report then
+		ns.Report.Check()
+	end
 	RefreshIfShown()
+end
+
+-- Which fishing message this is, if any: "escaped" (a fish got away) or "notHooked" (reeled
+-- before a bite). By the game's own ID for the message where it gives one, which holds in every
+-- language, else by its text.
+local MESSAGE_IDS = { ERR_FISH_ESCAPED = "escaped", ERR_FISH_NOT_HOOKED = "notHooked" }
+
+local function GameMessageKind(messageType, message)
+	if messageType and GetGameMessageInfo and not (issecretvalue and issecretvalue(messageType)) then
+		local ok, id = pcall(GetGameMessageInfo, messageType)
+		if ok and id and MESSAGE_IDS[id] then
+			return MESSAGE_IDS[id]
+		end
+	end
+	if type(message) ~= "string" or (issecretvalue and issecretvalue(message)) then
+		return nil
+	end
+	if ERR_FISH_ESCAPED and message == ERR_FISH_ESCAPED then
+		return "escaped"
+	elseif ERR_FISH_NOT_HOOKED and message == ERR_FISH_NOT_HOOKED then
+		return "notHooked"
+	end
+end
+
+-- Other fishing messages that arrive while a line is out, kept (the last few) for the report:
+-- if a fishing message is ever missed, it shows there and can be matched. Only ones about
+-- fishing, by the game's ID for them or their words, so a zone being discovered or a key pressed
+-- out of turn doesn't fill it up.
+local MAX_NOTED = 8
+local FISHY = { "fish", "hook", "bobber", "lure", "catch", "caught", "line", "reel", "bite", "pool", "school" }
+
+local function AboutFishing(id, message)
+	if id and id:find("FISH") then
+		return true
+	end
+	local lower = message:lower()
+	for _, word in ipairs(FISHY) do
+		if lower:find(word, 1, true) then
+			return true
+		end
+	end
+	return false
+end
+
+local function NoteMessage(event, messageType, message)
+	if type(message) ~= "string" or (issecretvalue and issecretvalue(message)) or message == "" then
+		return
+	end
+	local okID, id = false, nil
+	if messageType and GetGameMessageInfo then
+		okID, id = pcall(GetGameMessageInfo, messageType)
+	end
+	id = okID and type(id) == "string" and id or nil
+	if not AboutFishing(id, message) then
+		return
+	end
+	charDB.messagesWhileFishing = charDB.messagesWhileFishing or {}
+	local list = charDB.messagesWhileFishing
+	for _, seen in ipairs(list) do
+		if seen.text == message then
+			seen.count = seen.count + 1
+			return
+		end
+	end
+	table.insert(list, 1, { text = message, event = event, id = id, count = 1 })
+	list[MAX_NOTED + 1] = nil
 end
 
 local function OnFishEscaped()
@@ -497,6 +620,7 @@ local function OnFishEscaped()
 	end
 	local z = ZoneTotals(zone)
 	z.escapes = (z.escapes or 0) + 1
+	CountAtSkill(z, "skillGetaways")
 	-- The highest skill a fish has got away at, lure included: later skill-ups can outgrow it.
 	-- An old value a clean run has already cleared doesn't count.
 	if (z.cleanCatches or 0) >= CLEAN_CATCHES then
@@ -505,6 +629,9 @@ local function OnFishEscaped()
 	z.cleanCatches = 0
 	if rank then
 		z.escapeSkill = math.max(z.escapeSkill or 0, rank + modifier)
+	end
+	if ns.Report then
+		ns.Report.Check()
 	end
 	RefreshIfShown()
 end
@@ -523,15 +650,15 @@ function Stats.LureRates()
 	return rates
 end
 
--- One-line summary for the minimap tooltip.
+-- The session for the minimap tooltip: "12 of 15 caught · 40/hr", or nil before the first cast.
 function Stats.Summary()
 	local s = Session()
 	if s.casts == 0 then
-		return "No fishing this session"
+		return nil
 	end
 	local rate = PerHour(s)
-	return string.format("Session: %d/%d caught%s", s.catches, s.casts,
-		rate and string.format(", %.0f/hr", rate) or "")
+	return string.format("%d of %d caught%s", s.catches, s.casts,
+		rate and string.format("  ·  %.0f/hr", rate) or "")
 end
 
 local function SortedItems(items)
@@ -706,6 +833,10 @@ local function BuildView(view)
 	if contest then
 		stats[#stats + 1] = { "Extravaganza", contest }
 	end
+	local camp = ns.Camp and ns.Camp.StatusText()
+	if camp then
+		stats[#stats + 1] = { "Camp", "|cff1eff00" .. camp .. "|r" }
+	end
 	return SessionTitle(s), stats,
 		CountRows(SortedItems(s.items)), "Catches", "Nothing caught yet."
 end
@@ -808,6 +939,7 @@ function Stats.ZoneVerdict(zone, spot)
 end
 
 Stats.FishingSkill = FishingSkill
+Stats.CurrentZone = CurrentZone
 
 -- Skill bar fraction, value text and the verdict for the current zone.
 local function SkillStatus()
@@ -1130,6 +1262,68 @@ local function StatRow(parent, index, y)
 	return row
 end
 
+-- Where a named area is on its zone map (ns.AREA_PLACES), by the name the game gives it in any
+-- language: uiMapID, x, y, or nil. Some names are used in more than one zone, so the one on
+-- `zoneMapID` wins when given. Names are matched to area IDs once, on first use.
+local placesByName
+function Stats.AreaPlace(name, zoneMapID)
+	if not (name and ns.AREA_PLACES) then
+		return nil
+	end
+	if not placesByName then
+		placesByName = {}
+		for areaID, place in pairs(ns.AREA_PLACES) do
+			local areaName = C_Map.GetAreaInfo and C_Map.GetAreaInfo(areaID)
+			if areaName and areaName ~= "" then
+				placesByName[areaName] = placesByName[areaName] or {}
+				table.insert(placesByName[areaName], place)
+			end
+		end
+	end
+	local list = placesByName[name]
+	if not list then
+		return nil
+	end
+	local place = list[1]
+	for _, candidate in ipairs(list) do
+		if candidate[1] == zoneMapID then
+			place = candidate
+		end
+	end
+	return place[1], place[2], place[3]
+end
+
+-- The world map at mapID, and with x and y (0 to 1 on that map) the game's own waypoint there,
+-- tracked so its arrow shows. `label` names it in chat. False if it couldn't be opened.
+local function ShowOnMap(mapID, x, y, label)
+	if not mapID then
+		return false
+	end
+	if InCombatLockdown() then
+		ns.Print("the map can't be opened from here in combat.")
+		return false
+	end
+	if x and y and C_Map.SetUserWaypoint and UiMapPoint and UiMapPoint.CreateFromCoordinates
+		and (not C_Map.CanSetUserWaypointOnMap or C_Map.CanSetUserWaypointOnMap(mapID)) then
+		local ok = pcall(C_Map.SetUserWaypoint, UiMapPoint.CreateFromCoordinates(mapID, x, y))
+		if ok then
+			if C_SuperTrack and C_SuperTrack.SetSuperTrackedUserWaypoint then
+				pcall(C_SuperTrack.SetSuperTrackedUserWaypoint, true)
+			end
+			if label then
+				ns.Print(string.format("waypoint set: %s (%.0f, %.0f).", label, x * 100, y * 100))
+			end
+		end
+	end
+	if OpenWorldMap then
+		OpenWorldMap(mapID)
+	elseif WorldMapFrame then
+		ShowUIPanel(WorldMapFrame)
+		WorldMapFrame:SetMapID(mapID)
+	end
+	return true
+end
+
 -- Addons can't open a browser, so show the Wowhead address selected in a popup to copy.
 local WOWHEAD_ITEM_URL = "https://www.wowhead.com/forever/item=%d"
 
@@ -1192,6 +1386,22 @@ local function ItemRow(parent, index, y)
 	row.name:SetWordWrap(false)
 
 	row:SetScript("OnClick", function(self, mouseButton)
+		if self.spot then
+			-- A spot: the world map there, with a waypoint where you fished from.
+			local t = self.spot
+			if t.x then
+				ShowOnMap(t.mapID, t.x, t.y, self.itemName)
+				return
+			end
+			local zoneMap = ns.Book and ns.Book.ZoneMapID and ns.Book.ZoneMapID(CurrentZone())
+			local placeMap, px, py = Stats.AreaPlace(self.itemName, zoneMap)
+			if placeMap then
+				ShowOnMap(placeMap, px, py, self.itemName)
+				return
+			end
+			ShowOnMap(zoneMap, nil, nil, self.itemName)
+			return
+		end
 		if not self.itemID then
 			return
 		end
@@ -1231,6 +1441,13 @@ local function ItemRow(parent, index, y)
 				local color = QualityColor(C_Item.GetItemQualityByID(list[i].id))
 				GameTooltip:AddDoubleLine(name, "x" .. list[i].count, color and color.r or 1, color and color.g or 1,
 					color and color.b or 1, 1, 1, 1)
+			end
+			GameTooltip:AddLine(" ")
+			if t.x or Stats.AreaPlace(self.itemName) then
+				GameTooltip:AddLine("Click: show on the map, with a waypoint", 0.6, 0.8, 1)
+			else
+				GameTooltip:AddLine("Click: show the zone on the map", 0.6, 0.8, 1)
+				GameTooltip:AddLine("Fish here again to add a waypoint.", 0.6, 0.6, 0.6, true)
 			end
 			GameTooltip:Show()
 		elseif self.itemID then
@@ -1340,9 +1557,64 @@ if EventRegistry then
 	end, keepOpen)
 end
 
+-- Opening the options does the same: the panel opens as a "center" window, and showing one
+-- first closes every window in UISpecialFrames. So when OneCast opens them, its windows step off
+-- the list until the panel is up (or a moment has passed, if it never opens), then back on.
+local held
+
+local function PutBack()
+	if held then
+		for _, name in ipairs(held) do
+			tinsert(UISpecialFrames, name)
+		end
+		held = nil
+	end
+end
+
+local function HoldOpenForOptions()
+	if held then
+		return
+	end
+	held = {}
+	for i = #UISpecialFrames, 1, -1 do
+		if keepOpen[UISpecialFrames[i]] then
+			held[#held + 1] = table.remove(UISpecialFrames, i)
+		end
+	end
+	C_Timer.After(1, PutBack)
+end
+
+if SettingsPanel then
+	SettingsPanel:HookScript("OnShow", function()
+		C_Timer.After(0, PutBack)
+	end)
+end
+
+-- A window that opens where you last dragged it, for every character (OneCastDB.windowPoints).
+-- It's placed at `key`'s saved point, or left where the caller put it the first time.
+local function RememberPosition(frame, key)
+	local saved = ns.db and ns.db.windowPoints and ns.db.windowPoints[key]
+	if saved then
+		frame:ClearAllPoints()
+		frame:SetPoint(saved[1], UIParent, saved[2], saved[3], saved[4])
+	end
+	frame:SetClampedToScreen(true)
+	frame:SetScript("OnDragStop", function(self)
+		self:StopMovingOrSizing()
+		local point, _, relPoint, x, y = self:GetPoint()
+		if ns.db and point then
+			ns.db.windowPoints = ns.db.windowPoints or {}
+			ns.db.windowPoints[key] = { point, relPoint, x, y }
+		end
+	end)
+end
+
 -- The window's building blocks, shared by every window so they always match.
 ns.UI = {
 	KeepOpenThroughOptions = KeepOpenThroughOptions,
+	HoldOpenForOptions = HoldOpenForOptions,
+	RememberPosition = RememberPosition,
+	ShowOnMap = ShowOnMap,
 	TryCreate = TryCreate,
 	HasAtlas = HasAtlas,
 	SizedFont = SizedFont,
@@ -1496,7 +1768,21 @@ local function CreateWindow()
 	local book = IconButton(f, "Book", "Fishing collection", function()
 		ns.Book.Toggle()
 	end)
-	f.bottomButtons = { options, book, f.gear, f.scan, f.reset }
+	-- Data report, with a small green dot while there's something OneCast doesn't know yet.
+	f.report = IconButton(f, "Report", "Data report", function()
+		ns.Report.Toggle()
+	end)
+	f.report.dot = f.report:CreateTexture(nil, "OVERLAY", nil, 3)
+	f.report.dot:SetSize(9, 9)
+	f.report.dot:SetPoint("CENTER", f.report, "TOPRIGHT", -3, -3)
+	f.report.dot:SetTexture("Interface\\COMMON\\Indicator-Green")
+	f.report.dot:Hide()
+	f.report:HookScript("OnEnter", function()
+		local line = ns.Report and ns.Report.TooltipLine()
+		GameTooltip:AddLine(line or "Your catches and getaways as text, to share.", 1, 1, 1, true)
+		GameTooltip:Show()
+	end)
+	f.bottomButtons = { options, book, f.report, f.gear, f.scan, f.reset }
 
 	-- Resize grip: drag the bottom-right corner to scale the whole window.
 	local grip = CreateFrame("Button", nil, f)
@@ -1560,6 +1846,7 @@ end
 
 -- Lay out the visible bottom buttons right to left from Options.
 local function LayoutBottomButtons(view)
+	frame.report.dot:SetShown(ns.Report and #ns.Report.Unshared() > 0 or false)
 	frame.gear:SetShown(ns.Gear and ns.Gear.HasSaved() or false)
 	frame.scan:SetShown(ns.Prices and ns.Prices.IsAuctionOpen() and ns.Prices.CanScan() or false)
 	frame.reset:SetShown(view == "session")
@@ -1702,6 +1989,8 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("LOOT_READY")
 events:RegisterEvent("UI_ERROR_MESSAGE")
+events:RegisterEvent("UI_INFO_MESSAGE")
+events:RegisterEvent("SYSMSG")
 events:RegisterEvent("ITEM_DATA_LOAD_RESULT")
 events:RegisterEvent("SKILL_LINES_CHANGED")
 events:RegisterEvent("ZONE_CHANGED_NEW_AREA")
@@ -1718,14 +2007,52 @@ events:SetScript("OnEvent", function(_, event, ...)
 			charDB.lureRates = charDB.lureRates or { with = { time = 0, catches = 0 }, without = { time = 0, catches = 0 } }
 			charDB.log = charDB.log or {}
 			charDB.skill = charDB.skill or {}
+			-- Before 0.7.0's release, every message was kept: keep only the fishing ones.
+			if charDB.messagesWhileFishing then
+				for i = #charDB.messagesWhileFishing, 1, -1 do
+					local m = charDB.messagesWhileFishing[i]
+					if not AboutFishing(m.id, m.text) then
+						table.remove(charDB.messagesWhileFishing, i)
+					end
+				end
+			end
+			-- Stats filed under a dungeon's other name before 0.7.0 join the tables' one.
+			for old, new in pairs(ns.INSTANCE_ALIASES or {}) do
+				local stats = charDB.zoneStats
+				if stats[old] and not stats[new] then
+					stats[new], stats[old] = stats[old], nil
+				end
+				for _, totals in ipairs({ charDB.lifetime, charDB.session }) do
+					if totals.zones[old] then
+						totals.zones[new] = (totals.zones[new] or 0) + totals.zones[old]
+						totals.zones[old] = nil
+					end
+				end
+			end
 			ns.Lure.OnChange(ScheduleRefresh) -- a lure changes the zone verdict
 		end
 	elseif event == "LOOT_READY" then
 		OnLootReady(...)
-	elseif event == "UI_ERROR_MESSAGE" then
-		local _, message = ...
-		if ERR_FISH_ESCAPED and message == ERR_FISH_ESCAPED then
+	elseif event == "UI_ERROR_MESSAGE" or event == "UI_INFO_MESSAGE" or event == "SYSMSG" then
+		-- The game can show a message as a red error, a yellow notice or a system line, so all
+		-- three are watched. SYSMSG carries the text alone.
+		local messageType, message
+		if event == "SYSMSG" then
+			message = ...
+		else
+			messageType, message = ...
+		end
+		local kind = GameMessageKind(messageType, message)
+		if kind == "escaped" then
 			OnFishEscaped()
+		elseif kind == "notHooked" then
+			if awaitingLoot and charDB then
+				-- Reeled before a bite: an empty cast that says nothing about the zone's level.
+				local z = ZoneTotals(CurrentZone())
+				z.early = (z.early or 0) + 1
+			end
+		elseif awaitingLoot and charDB then
+			NoteMessage(event, messageType, message)
 		end
 	elseif event == "ITEM_DATA_LOAD_RESULT" then
 		-- Every addon's items report here: only ours matter, and a failed one isn't retried.

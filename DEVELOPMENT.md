@@ -18,6 +18,8 @@ Each cast and reel is still one hardware press; nothing is automated.
 
 | File | What it holds |
 |---|---|
+| `Camp.lua` | Forever's camp fishing crafts, the Uncommon and Rare Fishing buffs, and catches made under them |
+| `Report.lua` | `/onecast report`: the character's fishing data as copyable text |
 | `Themes.lua` | The window themes: a table of colours, and tinting what each window registers |
 | `OneCast.lua` | Cast button, reel key override, CVar leases, options panel, minimap button, slash commands |
 | `Gear.lua` | Equipping the pole from the bags and putting weapons back |

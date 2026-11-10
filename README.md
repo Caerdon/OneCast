@@ -67,6 +67,11 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - A raid-warning flash and sound for anything green or better (you choose the quality).
 - Right-click any fish in the stats window to mark it as **wanted** and get alerted when you catch it.
 
+### 🏕️ Fishing at camp
+- A **Camp tab** in the collection book for Forever's fishing crafts: the **Fish Bowl**, **Fishing Rack** and **Fishing Hut**, with the Fishing each needs, whether you've learned it, your reagents and what it does.
+- The stats window shows the **Uncommon or Rare Fishing** buff from a Rack or Hut with its time left, and chat tells you when it wears off.
+- What you catch while a camp buff is on is kept, to show what its extra rewards really are.
+
 ### 🏆 Fishing Extravaganza
 - A countdown to Stranglethorn's Sunday contest, a Tastyfish counter while it runs, and an alert the moment you hold 40.
 - Chat reminders shortly before it starts and when it does.
@@ -82,10 +87,11 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - A **What's new** page shows every update.
 
 ## Opening things
+- **Every window:** left-click the minimap button for a menu of them all, from the stats window to the collection, the Camp tab and the data report.
 - **Stats window:** opens when you cast, or right-click the minimap button.
 - **Tackle box:** right-click its button, or `/onecast tackle`. Shift-drag the button to move it.
 - **Fishing collection:** the book button in the stats window, Shift-click the minimap button, or `/onecast book`.
-- **Options:** left-click the minimap button, or `/onecast`.
+- **Options:** the minimap button's menu, or `/onecast`.
 - **Key bindings:** cast and reel, Apply lure, Tackle box, Fishing collection and Re-equip weapons, under Options → Keybindings → AddOns.
 
 ## Commands
@@ -96,6 +102,8 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 | `/onecast tackle` | Tackle box settings |
 | `/onecast tackle reset` | Move the tackle box button back to its first place |
 | `/onecast book` | Fishing collection |
+| `/onecast camp` | The collection's Camp tab |
+| `/onecast report` | Your fishing data as text, to share |
 | `/onecast theme` | Switch window theme (or `/onecast theme dark`) |
 | `/onecast reset` | Start a new session |
 | `/onecast gear` | Put your weapons back on |
@@ -112,6 +120,9 @@ Prefer the mouse? **Double right-click** the water with a pole equipped to cast,
 - OneCast's own text is in English. Zone levels work in every client language, but pool marks only recognise English pool names for now.
 - Pools move, so a mark shows where one has been, not where one is now.
 - Auction values need Auctionator or TradeSkillMaster installed.
+
+## Help fill in Forever's numbers
+Nobody has published Forever's real zone fishing levels or which fish live where. Type `/onecast report`, click **Select all**, press Ctrl+C and paste it in a comment here or in a [data report on GitHub](https://github.com/rynmon/OneCast/issues/new?template=data-report.yml). The report window has both links ready to copy. OneCast tells you when your fishing has turned up something it doesn't know, and the minimap button counts it until you share. It lists your catches and getaways with the skill each happened at, and nothing about who you are. With enough reports, OneCast can swap Classic's numbers for Forever's own.
 
 ## Feedback
 Feature requests and bug reports are very welcome. Leave a comment or open an issue here on CurseForge. The Zones tab and the tackle box both started as comments there, so thank you to everyone who suggests something!

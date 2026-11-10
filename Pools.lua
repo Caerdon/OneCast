@@ -61,6 +61,8 @@ local function ZonePosition()
 	return mapID, x, y
 end
 
+Pools.ZonePosition = ZonePosition
+
 function Pools.Remember(name)
 	local mapID, x, y = ZonePosition()
 	if not mapID then

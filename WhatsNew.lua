@@ -8,7 +8,7 @@ local ADDON, ns = ...
 local WhatsNew = {}
 ns.WhatsNew = WhatsNew
 
-local PROJECT_URL = "https://www.curseforge.com/wow/addons/onecast"
+local PROJECT_URL = "https://www.curseforge.com/wow/addons/onecast-one-button-fishing-for-wow-forever"
 local LINK = "addon:" .. ADDON .. ":whatsnew"
 
 local WIDTH, HEIGHT = 760, 520
@@ -216,7 +216,7 @@ local function CreateWindow()
 	f:EnableMouse(true)
 	f:RegisterForDrag("LeftButton")
 	f:SetScript("OnDragStart", f.StartMoving)
-	f:SetScript("OnDragStop", f.StopMovingOrSizing)
+	ns.UI.RememberPosition(f, "whatsNew")
 	tinsert(UISpecialFrames, f:GetName())
 	ns.Theme.Frame(f, f.Inset)
 	ns.UI.KeepOpenThroughOptions(f:GetName())

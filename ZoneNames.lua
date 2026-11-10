@@ -103,6 +103,9 @@ end
 ns.ZONE_FISHING_SKILL = TranslateKeys(ns.ZONE_FISHING_SKILL)
 ns.ZONE_FISHING_NOTE = TranslateKeys(ns.ZONE_FISHING_NOTE)
 ns.SPOT_FISHING_SKILL = TranslateKeys(ns.SPOT_FISHING_SKILL)
+for mapID, zone in pairs(ns.INSTANCE_ZONES) do
+	ns.INSTANCE_ZONES[mapID] = Translate(zone)
+end
 for i, zone in ipairs(ns.ZONE_FISHING_UNKNOWN) do
 	ns.ZONE_FISHING_UNKNOWN[i] = Translate(zone)
 end
